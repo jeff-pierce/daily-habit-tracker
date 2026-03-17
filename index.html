@@ -1,0 +1,1816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0A0A0F">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Daily">
+<link rel="manifest" href="manifest.json">
+<title>Daily Habit Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ── DARK MODE (default — matches LRBD) ── */
+  :root {
+    --bg:         #0A0A0F;
+    --surface:    #13131A;
+    --surface2:   #1C1C26;
+    --border:     rgba(255,255,255,0.07);
+    --border2:    rgba(255,255,255,0.13);
+    --text:       #FFFFFF;
+    --text-2:     rgba(255,255,255,0.50);
+    --text-3:     rgba(255,255,255,0.25);
+    --accent:     #7B6EF6;
+    --accent2:    #9D93F8;
+    --accent-bg:  rgba(123,110,246,0.14);
+    --success:    #4ADE80;
+    --success-bg: rgba(74,222,128,0.10);
+    --danger:     #F87171;
+    --danger-bg:  rgba(248,113,113,0.10);
+    --gold:       #F0C040;
+    --shadow:     rgba(0,0,0,0.45);
+    --shadow-md:  rgba(0,0,0,0.65);
+    --scrollbar:  rgba(255,255,255,0.10);
+  }
+
+  /* ── LIGHT MODE ── */
+  [data-theme="light"] {
+    --bg:         #F2F2F7;
+    --surface:    #FFFFFF;
+    --surface2:   #EBEBF0;
+    --border:     rgba(0,0,0,0.07);
+    --border2:    rgba(0,0,0,0.13);
+    --text:       #0A0A0F;
+    --text-2:     rgba(10,10,15,0.50);
+    --text-3:     rgba(10,10,15,0.28);
+    --accent:     #5B50D6;
+    --accent2:    #7B6EF6;
+    --accent-bg:  rgba(91,80,214,0.09);
+    --success:    #16A34A;
+    --success-bg: rgba(22,163,74,0.09);
+    --danger:     #DC2626;
+    --danger-bg:  rgba(220,38,38,0.09);
+    --gold:       #D97706;
+    --shadow:     rgba(0,0,0,0.07);
+    --shadow-md:  rgba(0,0,0,0.13);
+    --scrollbar:  rgba(0,0,0,0.10);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 2px; }
+
+  body {
+    font-family: 'Sora', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+    transition: background 0.25s, color 0.25s;
+  }
+
+  /* ── AUTH SCREEN ── */
+  #auth-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+    padding: 2rem;
+  }
+
+  .auth-card {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 20px;
+    padding: 2.75rem 2.25rem;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 24px 64px var(--shadow-md);
+    text-align: center;
+  }
+
+  .auth-logo {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 0.3rem;
+    letter-spacing: -0.03em;
+  }
+
+  .auth-tagline {
+    font-size: 0.8rem;
+    color: var(--text-2);
+    margin-bottom: 2rem;
+    font-weight: 300;
+    line-height: 1.6;
+  }
+
+  .auth-tagline strong {
+    color: var(--accent2);
+    font-weight: 600;
+    display: block;
+    margin-top: 0.15rem;
+  }
+
+  .auth-tabs {
+    display: flex;
+    background: var(--surface2);
+    border-radius: 10px;
+    padding: 3px;
+    margin-bottom: 1.75rem;
+    border: 1px solid var(--border);
+  }
+
+  .auth-tab {
+    flex: 1;
+    padding: 0.55rem;
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: 'Sora', sans-serif;
+    font-size: 0.83rem;
+    color: var(--text-2);
+    transition: all 0.2s;
+  }
+
+  .auth-tab.active {
+    background: var(--accent);
+    color: #fff;
+    font-weight: 600;
+    box-shadow: 0 2px 12px rgba(123,110,246,0.4);
+  }
+
+  .form-group { margin-bottom: 1rem; text-align: left; }
+
+  .form-group label {
+    display: block;
+    font-size: 0.68rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--text-2);
+    margin-bottom: 0.4rem;
+    font-weight: 600;
+  }
+
+  .form-group input {
+    width: 100%;
+    padding: 0.78rem 1rem;
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    font-family: 'Sora', sans-serif;
+    font-size: 0.93rem;
+    background: var(--surface2);
+    color: var(--text);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    outline: none;
+  }
+
+  .form-group input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-bg);
+  }
+
+  .btn-primary {
+    width: 100%;
+    padding: 0.82rem;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-family: 'Sora', sans-serif;
+    font-size: 0.93rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    margin-top: 0.4rem;
+  }
+
+  .btn-primary:hover { opacity: 0.88; }
+  .btn-primary:active { transform: scale(0.98); }
+
+  .auth-error {
+    color: var(--danger);
+    font-size: 0.8rem;
+    margin-top: 0.9rem;
+    min-height: 1.2rem;
+  }
+
+  /* ── MAIN APP ── */
+  #app { display: none; min-height: 100vh; padding-bottom: 80px; }
+
+  /* NAV */
+  .bottom-nav {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    z-index: 100;
+    box-shadow: 0 -4px 20px var(--shadow);
+  }
+
+  .nav-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.6rem 0.4rem;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: var(--text-3);
+    font-size: 0.58rem;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    font-family: 'Sora', sans-serif;
+    font-weight: 600;
+    transition: color 0.2s;
+    gap: 3px;
+  }
+
+  .nav-btn.active { color: var(--accent); }
+  .nav-btn svg { width: 20px; height: 20px; }
+
+  /* PAGES */
+  .page { display: none; padding: 1.4rem 1rem 1rem; max-width: 600px; margin: 0 auto; }
+  .page.active { display: block; }
+
+  /* PAGE HEADER */
+  .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.4rem;
+    gap: 0.75rem;
+  }
+
+  .page-title {
+    font-size: 1.7rem;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.03em;
+  }
+
+  .page-subtitle {
+    font-size: 0.75rem;
+    color: var(--text-2);
+    font-weight: 300;
+    margin-top: 0.1rem;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  .date-badge {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.32rem 0.7rem;
+    font-size: 0.72rem;
+    color: var(--text-2);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
+  .theme-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    font-size: 0.95rem;
+    transition: background 0.2s, border-color 0.2s;
+    flex-shrink: 0;
+  }
+  .theme-btn:hover { border-color: var(--border2); background: var(--border); }
+
+  /* HABIT CARDS */
+  .habit-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.05rem 1.15rem;
+    margin-bottom: 0.65rem;
+    transition: border-color 0.25s, background 0.25s;
+  }
+
+  .habit-card.completed {
+    border-color: rgba(74,222,128,0.35);
+    background: var(--success-bg);
+  }
+
+  .habit-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-2);
+    font-weight: 600;
+    margin-bottom: 0.7rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  /* Counter */
+  .counter-row { display: flex; align-items: center; gap: 0.9rem; }
+
+  .counter-btn {
+    width: 38px; height: 38px;
+    border-radius: 9px;
+    border: 1px solid var(--border2);
+    background: var(--surface2);
+    font-size: 1.2rem;
+    cursor: pointer;
+    color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+    font-weight: 700;
+  }
+
+  .counter-btn:active { transform: scale(0.88); background: var(--accent-bg); border-color: var(--accent); }
+
+  .counter-value {
+    font-size: 1.9rem;
+    font-weight: 700;
+    color: var(--text);
+    min-width: 58px;
+    text-align: center;
+    letter-spacing: -0.03em;
+  }
+
+  .counter-unit {
+    font-size: 0.72rem;
+    color: var(--text-3);
+    font-weight: 300;
+  }
+
+  /* Toggle */
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; }
+
+  .toggle-switch { position: relative; width: 50px; height: 27px; }
+  .toggle-switch input { display: none; }
+
+  .toggle-slider {
+    position: absolute;
+    inset: 0;
+    background: var(--border2);
+    border-radius: 14px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .toggle-slider::after {
+    content: '';
+    position: absolute;
+    width: 19px; height: 19px;
+    background: white;
+    border-radius: 50%;
+    top: 4px; left: 4px;
+    transition: transform 0.2s;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  }
+
+  .toggle-switch input:checked + .toggle-slider { background: var(--accent); }
+  .toggle-switch input:checked + .toggle-slider::after { transform: translateX(23px); }
+
+  .toggle-label { font-size: 0.92rem; color: var(--text); font-weight: 400; }
+
+  /* Slider */
+  .slider-row { display: flex; align-items: center; gap: 0.9rem; }
+
+  .range-slider {
+    -webkit-appearance: none;
+    flex: 1;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border2);
+    outline: none;
+  }
+
+  .range-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(123,110,246,0.5);
+  }
+
+  .slider-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--accent);
+    min-width: 2.4rem;
+    text-align: center;
+    letter-spacing: -0.02em;
+  }
+
+  /* Text areas */
+  .gratitude-list { display: flex; flex-direction: column; gap: 0.55rem; }
+
+  .gratitude-input {
+    width: 100%;
+    padding: 0.62rem 0.85rem;
+    border: 1px solid var(--border2);
+    border-radius: 9px;
+    font-family: 'Sora', sans-serif;
+    font-size: 0.88rem;
+    background: var(--surface2);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    resize: none;
+  }
+
+  .gratitude-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg); }
+
+  .gratitude-num {
+    font-size: 0.65rem;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 0.18rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  /* Save bar */
+  .save-bar {
+    position: sticky;
+    bottom: 90px;
+    padding: 0 1rem;
+    max-width: 600px;
+    margin: 0.9rem auto 0;
+  }
+
+  .btn-save {
+    width: 100%;
+    padding: 0.9rem;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-family: 'Sora', sans-serif;
+    font-size: 0.93rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(123,110,246,0.4);
+    transition: transform 0.15s, opacity 0.15s;
+  }
+
+  .btn-save:hover { opacity: 0.9; }
+  .btn-save:active { transform: scale(0.98); }
+
+  .save-success {
+    text-align: center;
+    color: var(--success);
+    font-size: 0.83rem;
+    font-weight: 600;
+    padding: 0.5rem;
+    display: none;
+  }
+
+  /* ── REPORTS PAGE ── */
+  .report-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.15rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .report-section h3 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 0.95rem;
+    letter-spacing: -0.01em;
+  }
+
+  .streak-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.55rem; }
+
+  .streak-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    padding: 0.85rem;
+    text-align: center;
+  }
+
+  .streak-number {
+    font-size: 1.85rem;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: -0.03em;
+  }
+
+  .streak-label {
+    font-size: 0.63rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-2);
+    font-weight: 600;
+    margin-top: 0.2rem;
+  }
+
+  .weekly-summary { display: flex; flex-direction: column; }
+
+  .summary-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .summary-row:last-child { border-bottom: none; }
+  .summary-label { font-size: 0.85rem; color: var(--text-2); }
+  .summary-value { font-weight: 700; color: var(--text); font-size: 0.97rem; letter-spacing: -0.01em; }
+
+  /* Heatmap */
+  .heatmap { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 0.5rem; }
+
+  .heatmap-day { aspect-ratio: 1; border-radius: 3px; background: var(--surface2); }
+  .heatmap-day.level-1 { background: rgba(123,110,246,0.18); }
+  .heatmap-day.level-2 { background: rgba(123,110,246,0.48); }
+  .heatmap-day.level-3 { background: var(--accent); }
+
+  .heatmap-labels { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 4px; }
+
+  .heatmap-day-label {
+    text-align: center;
+    font-size: 0.56rem;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+  }
+
+  /* Chart */
+  .chart-container { position: relative; height: 155px; margin-top: 0.5rem; }
+  canvas { width: 100% !important; }
+
+  .report-tabs { display: flex; gap: 0.4rem; margin-bottom: 0.9rem; flex-wrap: wrap; }
+
+  .report-tab {
+    padding: 0.32rem 0.8rem;
+    border-radius: 20px;
+    border: 1px solid var(--border2);
+    background: transparent;
+    font-family: 'Sora', sans-serif;
+    font-size: 0.73rem;
+    font-weight: 600;
+    color: var(--text-2);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .report-tab.active { background: var(--accent); border-color: var(--accent); color: white; }
+
+  .btn-export {
+    width: 100%;
+    padding: 0.72rem;
+    background: transparent;
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    color: var(--text-2);
+    font-family: 'Sora', sans-serif;
+    font-size: 0.83rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 0.25rem;
+  }
+
+  .btn-export:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── ADMIN PAGE ── */
+  .admin-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.15rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .admin-section h3 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 0.95rem;
+    letter-spacing: -0.01em;
+  }
+
+  .admin-habit-row {
+    display: flex;
+    align-items: center;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid var(--border);
+    gap: 0.7rem;
+  }
+
+  .admin-habit-row:last-child { border-bottom: none; }
+  .admin-habit-info { flex: 1; }
+  .admin-habit-name { font-size: 0.9rem; color: var(--text); font-weight: 600; }
+  .admin-habit-type { font-size: 0.68rem; color: var(--text-3); margin-top: 0.1rem; }
+
+  .admin-form { display: flex; flex-direction: column; gap: 0.6rem; }
+
+  .admin-form input, .admin-form select {
+    padding: 0.68rem 0.85rem;
+    border: 1px solid var(--border2);
+    border-radius: 9px;
+    font-family: 'Sora', sans-serif;
+    font-size: 0.88rem;
+    background: var(--surface2);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .admin-form input:focus, .admin-form select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-bg);
+  }
+
+  .admin-form select option { background: var(--surface); color: var(--text); }
+
+  .btn-add {
+    padding: 0.68rem;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 9px;
+    font-family: 'Sora', sans-serif;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+
+  .btn-add:hover { opacity: 0.88; }
+
+  .notif-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.35rem 0;
+    margin-bottom: 0.4rem;
+  }
+
+  .notif-label { font-size: 0.9rem; color: var(--text); }
+
+  .time-input {
+    padding: 0.48rem 0.72rem;
+    border: 1px solid var(--border2);
+    border-radius: 9px;
+    font-family: 'Sora', sans-serif;
+    font-size: 0.88rem;
+    background: var(--surface2);
+    color: var(--text);
+    outline: none;
+    margin-top: 0.45rem;
+    width: 100%;
+  }
+
+  .btn-danger {
+    padding: 0.26rem 0.52rem;
+    background: transparent;
+    border: 1px solid var(--danger);
+    border-radius: 7px;
+    color: var(--danger);
+    font-size: 0.7rem;
+    font-family: 'Sora', sans-serif;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .btn-danger:hover { background: var(--danger-bg); }
+
+  .btn-logout {
+    width: 100%;
+    padding: 0.68rem;
+    background: transparent;
+    border: 1px solid var(--danger);
+    border-radius: 10px;
+    color: var(--danger);
+    font-family: 'Sora', sans-serif;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+    margin-top: 0.4rem;
+  }
+
+  .btn-logout:hover { background: var(--danger-bg); }
+
+  /* TOAST */
+  .toast {
+    position: fixed;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%) translateY(16px);
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    padding: 0.6rem 1.35rem;
+    border-radius: 20px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    opacity: 0;
+    transition: all 0.28s;
+    z-index: 1000;
+    white-space: nowrap;
+    box-shadow: 0 8px 28px var(--shadow);
+  }
+
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* Loading */
+  .loading-spinner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem;
+    color: var(--text-3);
+    gap: 0.9rem;
+    font-size: 0.82rem;
+  }
+
+  .spinner {
+    width: 30px; height: 30px;
+    border: 2px solid var(--border2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.75s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Mood */
+  .mood-row { display: flex; justify-content: space-between; align-items: center; }
+
+  .mood-emoji {
+    font-size: 1.4rem;
+    cursor: pointer;
+    opacity: 0.3;
+    transition: all 0.15s;
+    padding: 0.22rem;
+    border-radius: 8px;
+  }
+
+  .mood-emoji.selected { opacity: 1; transform: scale(1.28); background: var(--accent-bg); }
+
+  /* Completion bar */
+  .completion-bar-wrap {
+    background: var(--surface2);
+    border-radius: 3px;
+    height: 3px;
+    margin-bottom: 1.2rem;
+    overflow: hidden;
+  }
+
+  .completion-bar {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 3px;
+    transition: width 0.4s ease;
+  }
+
+  .completion-label {
+    font-size: 0.68rem;
+    color: var(--text-3);
+    margin-bottom: 0.35rem;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+  }
+
+  .pr-badge {
+    display: inline-block;
+    background: var(--gold);
+    color: #0A0A0F;
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.1rem 0.38rem;
+    border-radius: 4px;
+    margin-left: 0.4rem;
+    vertical-align: middle;
+  }
+</style>
+</head>
+<body>
+<!-- AUTH -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">🎯 Daily Habit Tracker</div>
+    <div class="auth-tagline">Show up every day.<strong>Consistently over intensity.</strong></div>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuthTab('login')">Sign In</button>
+      <button class="auth-tab" onclick="switchAuthTab('signup')">Create Account</button>
+    </div>
+
+    <div id="login-form">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="login-email" placeholder="you@example.com" autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <button class="btn-primary" onclick="handleLogin()">Sign In</button>
+    </div>
+
+    <div id="signup-form" style="display:none">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="signup-email" placeholder="you@example.com">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="signup-password" placeholder="Min. 6 characters">
+      </div>
+      <button class="btn-primary" onclick="handleSignup()">Create Account</button>
+    </div>
+
+    <div class="auth-error" id="auth-error"></div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+
+  <!-- TODAY PAGE -->
+  <div class="page active" id="page-today">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Today</div>
+        <div class="page-subtitle" id="today-subtitle"></div>
+      </div>
+      <div class="header-right"><div class="date-badge" id="today-date"></div><button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle theme">🌙</button></div>
+    </div>
+
+    <div class="completion-label" id="completion-label">0 of 0 habits logged</div>
+    <div class="completion-bar-wrap">
+      <div class="completion-bar" id="completion-bar" style="width:0%"></div>
+    </div>
+
+    <div id="habits-container">
+      <div class="loading-spinner"><div class="spinner"></div>Loading...</div>
+    </div>
+
+    <div class="save-bar">
+      <button class="btn-save" onclick="saveToday()">💾 Save Today</button>
+      <div class="save-success" id="save-success">💾 Saved!</div>
+    </div>
+  </div>
+
+  <!-- REPORTS PAGE -->
+  <div class="page" id="page-reports">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Reports</div>
+        <div class="page-subtitle">your progress over time</div>
+      </div>
+    </div>
+
+    <div class="report-section">
+      <h3>🔥 Current Streaks</h3>
+      <div class="streak-grid" id="streaks-grid">
+        <div class="loading-spinner" style="grid-column:1/-1"><div class="spinner"></div></div>
+      </div>
+    </div>
+
+    <div class="report-section">
+      <h3>📅 Completion Heatmap <small style="font-size:0.75rem;color:var(--text-2);font-weight:300"> — last 28 days</small></h3>
+      <div class="heatmap-labels">
+        <div class="heatmap-day-label">S</div><div class="heatmap-day-label">M</div>
+        <div class="heatmap-day-label">T</div><div class="heatmap-day-label">W</div>
+        <div class="heatmap-day-label">T</div><div class="heatmap-day-label">F</div>
+        <div class="heatmap-day-label">S</div>
+      </div>
+      <div class="heatmap" id="heatmap"></div>
+    </div>
+
+    <div class="report-section">
+      <h3>📈 Exercise Progress</h3>
+      <div class="report-tabs">
+        <button class="report-tab active" onclick="switchChartMetric('pushups', this)">Push-ups</button>
+        <button class="report-tab" onclick="switchChartMetric('squats', this)">Squats</button>
+        <button class="report-tab" onclick="switchChartMetric('water', this)">Water</button>
+        <button class="report-tab" onclick="switchChartMetric('meditation', this)">Meditation</button>
+      </div>
+      <div class="chart-container">
+        <canvas id="progress-chart"></canvas>
+      </div>
+    </div>
+
+    <div class="report-section">
+      <h3>📊 This Week</h3>
+      <div class="weekly-summary" id="weekly-summary">
+        <div class="loading-spinner"><div class="spinner"></div></div>
+      </div>
+    </div>
+
+    <div class="report-section">
+      <h3>🏆 Personal Records</h3>
+      <div class="weekly-summary" id="records-list">
+        <div class="loading-spinner"><div class="spinner"></div></div>
+      </div>
+    </div>
+
+    <button class="btn-export" onclick="exportCSV()">⬇ Export All Data as CSV</button>
+  </div>
+
+  <!-- ADMIN PAGE -->
+  <div class="page" id="page-admin">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Admin</div>
+        <div class="page-subtitle">customize your tracker</div>
+      </div>
+    </div>
+
+    <div class="admin-section">
+      <h3>🔔 Notifications</h3>
+      <div class="notif-row">
+        <span class="notif-label">Daily reminder</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="notif-toggle" onchange="toggleNotifications(this.checked)">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div id="notif-time-wrap" style="display:none">
+        <input type="time" class="time-input" id="notif-time" value="08:00" onchange="saveNotifTime()">
+      </div>
+    </div>
+
+    <div class="admin-section">
+      <h3>👁 Show / Hide Habits</h3>
+      <div id="admin-habits-list">
+        <div class="loading-spinner"><div class="spinner"></div></div>
+      </div>
+    </div>
+
+    <div class="admin-section">
+      <h3>➕ Add New Habit</h3>
+      <div class="admin-form">
+        <input type="text" id="new-habit-name" placeholder="Habit name (e.g. Cold shower)">
+        <input type="text" id="new-habit-emoji" placeholder="Emoji (e.g. 🚿)">
+        <select id="new-habit-type">
+          <option value="counter">Counter (number)</option>
+          <option value="toggle">Yes / No toggle</option>
+          <option value="slider">Slider (1–10)</option>
+          <option value="text">Open text field</option>
+          <option value="gratitude">Multiple text entries</option>
+        </select>
+        <input type="text" id="new-habit-unit" placeholder="Unit label (e.g. reps, mins, cups) — optional">
+        <button class="btn-add" onclick="addNewHabit()">Add Habit</button>
+      </div>
+    </div>
+
+    <div class="admin-section">
+      <h3>👤 Account</h3>
+      <div style="font-size:0.85rem;color:var(--text-2);margin-bottom:0.5rem" id="user-email-display"></div>
+      <button class="btn-logout" onclick="handleLogout()">Sign Out</button>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" onclick="showPage('today', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+      </svg>
+      Today
+    </button>
+    <button class="nav-btn" onclick="showPage('reports', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 4-8"/>
+      </svg>
+      Reports
+    </button>
+    <button class="nav-btn" onclick="showPage('admin', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M12 2v2m0 16v2M4.22 4.22l1.42 1.42m12.72 12.72 1.42 1.42M2 12h2m16 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+      </svg>
+      Admin
+    </button>
+  </nav>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// SUPABASE CONFIG — Replace with your project values
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const SUPABASE_URL = 'https://biyzgnlqhsszxuspqhqz.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_U1hB19oZ9uLhdZx-VHXEng_s8_CmdW0';
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// SUPABASE CLIENT (vanilla fetch-based, no SDK needed)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const sb = {
+  token: null,
+  userId: null,
+
+  headers(extra={}) {
+    return {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${this.token || SUPABASE_ANON_KEY}`,
+      ...extra
+    };
+  },
+
+  async signIn(email, password) {
+    const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+      body: JSON.stringify({ email, password })
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error_description || d.error);
+    this.token = d.access_token;
+    this.userId = d.user.id;
+    localStorage.setItem('dht_token', d.access_token);
+    localStorage.setItem('dht_refresh', d.refresh_token);
+    localStorage.setItem('dht_uid', d.user.id);
+    localStorage.setItem('dht_email', d.user.email);
+    return d;
+  },
+
+  async signUp(email, password) {
+    const r = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+      body: JSON.stringify({ email, password })
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error_description || d.error);
+    return d;
+  },
+
+  async refreshSession() {
+    const refresh = localStorage.getItem('dht_refresh');
+    if (!refresh) return false;
+    try {
+      const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+        body: JSON.stringify({ refresh_token: refresh })
+      });
+      const d = await r.json();
+      if (d.error) return false;
+      this.token = d.access_token;
+      this.userId = d.user.id;
+      localStorage.setItem('dht_token', d.access_token);
+      localStorage.setItem('dht_refresh', d.refresh_token);
+      return true;
+    } catch { return false; }
+  },
+
+  signOut() {
+    this.token = null; this.userId = null;
+    ['dht_token','dht_refresh','dht_uid','dht_email'].forEach(k => localStorage.removeItem(k));
+  },
+
+  async from(table) {
+    return {
+      _table: table,
+      _filters: [],
+      _order: null,
+      eq(col, val) { this._filters.push(`${col}=eq.${val}`); return this; },
+      gte(col, val) { this._filters.push(`${col}=gte.${val}`); return this; },
+      lte(col, val) { this._filters.push(`${col}=lte.${val}`); return this; },
+      order(col, { ascending=true }={}) { this._order = `${col}.${ascending?'asc':'desc'}`; return this; },
+      async select(cols='*') {
+        let url = `${SUPABASE_URL}/rest/v1/${this._table}?select=${cols}`;
+        if (this._filters.length) url += '&' + this._filters.join('&');
+        if (this._order) url += `&order=${this._order}`;
+        const r = await fetch(url, { headers: sb.headers({'Prefer':'return=representation'}) });
+        return { data: await r.json(), error: r.ok ? null : true };
+      },
+      async insert(obj) {
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/${this._table}`, {
+          method: 'POST',
+          headers: sb.headers({'Prefer':'return=representation'}),
+          body: JSON.stringify(obj)
+        });
+        return { data: await r.json(), error: r.ok ? null : true };
+      },
+      async upsert(obj, { onConflict }={}) {
+        let url = `${SUPABASE_URL}/rest/v1/${this._table}`;
+        if (onConflict) url += `?on_conflict=${onConflict}`;
+        const r = await fetch(url, {
+          method: 'POST',
+          headers: sb.headers({'Prefer':'return=representation,resolution=merge-duplicates'}),
+          body: JSON.stringify(obj)
+        });
+        return { data: await r.json(), error: r.ok ? null : true };
+      },
+      async update(obj) {
+        let url = `${SUPABASE_URL}/rest/v1/${this._table}?`;
+        if (this._filters.length) url += this._filters.join('&');
+        const r = await fetch(url, {
+          method: 'PATCH',
+          headers: sb.headers({'Prefer':'return=representation'}),
+          body: JSON.stringify(obj)
+        });
+        return { data: await r.json(), error: r.ok ? null : true };
+      },
+      async delete() {
+        let url = `${SUPABASE_URL}/rest/v1/${this._table}?`;
+        if (this._filters.length) url += this._filters.join('&');
+        const r = await fetch(url, { method: 'DELETE', headers: sb.headers() });
+        return { error: r.ok ? null : true };
+      }
+    };
+  }
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// DEFAULT HABITS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const DEFAULT_HABITS = [
+  { id: 'pushups',    name: 'Push-ups',      emoji: '💪', type: 'counter', unit: 'reps',   step: 10, visible: true },
+  { id: 'squats',     name: 'Squats',        emoji: '🦵', type: 'counter', unit: 'reps',   step: 10, visible: true },
+  { id: 'water',      name: 'Water',         emoji: '💧', type: 'counter', unit: 'cups',   step: 1,  visible: true },
+  { id: 'vitamins',   name: 'Vitamins',      emoji: '💊', type: 'toggle',  visible: true },
+  { id: 'meditation', name: 'Meditation',    emoji: '🧘', type: 'counter', unit: 'mins',   step: 1,  visible: true },
+  { id: 'sleep',      name: 'Sleep',         emoji: '🌙', type: 'counter', unit: 'hrs',    step: 0.5, visible: true },
+  { id: 'mood',       name: 'Mood',          emoji: '😊', type: 'mood',    visible: true },
+  { id: 'day_rating', name: 'Day Rating',    emoji: '⭐', type: 'slider',  unit: '/10',    visible: true },
+  { id: 'gratitude',  name: 'Grateful For',  emoji: '🙏', type: 'gratitude', count: 3,     visible: true },
+];
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// STATE
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+let habits = [];
+let todayValues = {};
+let allLogs = [];
+let progressChart = null;
+let currentChartMetric = 'pushups';
+
+const todayStr = () => new Date().toISOString().slice(0,10);
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// AUTH
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function switchAuthTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach((t,i) => t.classList.toggle('active', (tab==='login'?0:1)===i));
+  document.getElementById('login-form').style.display = tab==='login'?'block':'none';
+  document.getElementById('signup-form').style.display = tab==='signup'?'block':'none';
+  document.getElementById('auth-error').textContent = '';
+}
+
+async function handleLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  try {
+    await sb.signIn(email, password);
+    startApp();
+  } catch(e) {
+    document.getElementById('auth-error').textContent = e.message;
+  }
+}
+
+async function handleSignup() {
+  const email = document.getElementById('signup-email').value.trim();
+  const password = document.getElementById('signup-password').value;
+  try {
+    await sb.signUp(email, password);
+    showToast('Account created! Please check your email to confirm.');
+    switchAuthTab('login');
+  } catch(e) {
+    document.getElementById('auth-error').textContent = e.message;
+  }
+}
+
+function handleLogout() {
+  sb.signOut();
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'flex';
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// APP INIT
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+async function startApp() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+
+  // Set date display
+  const now = new Date();
+  document.getElementById('today-date').textContent =
+    now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  document.getElementById('today-subtitle').textContent =
+    now.toLocaleDateString('en-US', { weekday: 'long' });
+  document.getElementById('user-email-display').textContent =
+    localStorage.getItem('dht_email') || '';
+
+  await loadHabits();
+  await loadTodayLog();
+  renderToday();
+  loadNotifSettings();
+}
+
+async function loadHabits() {
+  try {
+    const t = await sb.from('dht_habits');
+    const { data } = await t.eq('user_id', sb.userId).order('sort_order', {ascending:true}).select();
+    if (data && Array.isArray(data) && data.length > 0) {
+      habits = data;
+    } else {
+      // First run — seed defaults
+      habits = DEFAULT_HABITS.map((h,i) => ({...h, user_id: sb.userId, sort_order: i}));
+      const t2 = await sb.from('dht_habits');
+      await t2.insert(habits);
+    }
+  } catch {
+    habits = DEFAULT_HABITS;
+  }
+}
+
+async function loadTodayLog() {
+  try {
+    const t = await sb.from('dht_logs');
+    const { data } = await t.eq('user_id', sb.userId).eq('log_date', todayStr()).select();
+    if (data && data.length > 0) todayValues = data[0].values || {};
+  } catch { todayValues = {}; }
+}
+
+async function loadAllLogs() {
+  try {
+    const t = await sb.from('dht_logs');
+    const { data } = await t.eq('user_id', sb.userId).order('log_date', {ascending:true}).select();
+    allLogs = data || [];
+  } catch { allLogs = []; }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// TODAY RENDER
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function renderToday() {
+  const container = document.getElementById('habits-container');
+  const visible = habits.filter(h => h.visible !== false);
+  container.innerHTML = visible.map(h => renderHabitCard(h)).join('');
+  updateCompletionBar();
+}
+
+function renderHabitCard(h) {
+  const v = todayValues[h.id];
+  const isComplete = checkComplete(h, v);
+  return `<div class="habit-card ${isComplete?'completed':''}" id="card-${h.id}">
+    <div class="habit-label"><span class="emoji">${h.emoji||'✦'}</span>${h.name}</div>
+    ${renderInput(h, v)}
+  </div>`;
+}
+
+function renderInput(h, v) {
+  switch(h.type) {
+    case 'counter': {
+      const val = v || 0;
+      const step = h.step || 1;
+      return `<div class="counter-row">
+        <button class="counter-btn" onclick="adjustCounter('${h.id}', ${-step})">−</button>
+        <div>
+          <div class="counter-value">${val}</div>
+          <div class="counter-unit">${h.unit||''}</div>
+        </div>
+        <button class="counter-btn" onclick="adjustCounter('${h.id}', ${step})">+</button>
+      </div>`;
+    }
+    case 'toggle': {
+      const checked = v ? 'checked' : '';
+      return `<div class="toggle-row">
+        <span class="toggle-label">${v ? 'Done ✓' : 'Not yet'}</span>
+        <label class="toggle-switch">
+          <input type="checkbox" ${checked} onchange="setValue('${h.id}', this.checked)">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>`;
+    }
+    case 'slider': {
+      const val = v || 5;
+      return `<div class="slider-row">
+        <input class="range-slider" type="range" min="1" max="10" value="${val}"
+          oninput="setValue('${h.id}', +this.value); this.previousElementSibling && (this.previousElementSibling.textContent=this.value)">
+        <div class="slider-value" id="slider-val-${h.id}">${val}</div>
+        <span style="font-size:0.8rem;color:var(--text-2)">${h.unit||'/10'}</span>
+      </div>`;
+    }
+    case 'mood': {
+      const moods = ['😔','😕','😐','🙂','😄'];
+      const val = v || 0;
+      return `<div class="mood-row">
+        ${moods.map((m,i) => `<span class="mood-emoji ${val===i+1?'selected':''}" onclick="selectMood('${h.id}', ${i+1}, this)">${m}</span>`).join('')}
+      </div>`;
+    }
+    case 'gratitude': {
+      const vals = v || ['','',''];
+      const count = h.count || 3;
+      return `<div class="gratitude-list">
+        ${Array.from({length:count}, (_,i) => `
+          <div class="gratitude-num">${i+1}.</div>
+          <textarea class="gratitude-input" rows="2" placeholder="I'm grateful for..."
+            oninput="setGratitude('${h.id}', ${i}, this.value)">${vals[i]||''}</textarea>
+        `).join('')}
+      </div>`;
+    }
+    case 'text': {
+      const val = v || '';
+      return `<textarea class="gratitude-input" rows="3" placeholder="Write something..."
+        oninput="setValue('${h.id}', this.value)">${val}</textarea>`;
+    }
+    default: return '';
+  }
+}
+
+function adjustCounter(id, delta) {
+  const h = habits.find(h => h.id === id);
+  const step = h?.step || 1;
+  const cur = todayValues[id] || 0;
+  const newVal = Math.max(0, Math.round((cur + delta) * 10) / 10);
+  setValue(id, newVal);
+  // Update display
+  const card = document.getElementById(`card-${id}`);
+  if (card) {
+    card.querySelector('.counter-value').textContent = newVal;
+    card.classList.toggle('completed', newVal > 0);
+  }
+  updateCompletionBar();
+}
+
+function setValue(id, val) {
+  todayValues[id] = val;
+  const card = document.getElementById(`card-${id}`);
+  if (card) {
+    const h = habits.find(h => h.id === id);
+    card.classList.toggle('completed', checkComplete(h, val));
+    // Update slider display
+    if (h?.type === 'slider') {
+      const sv = document.getElementById(`slider-val-${id}`);
+      if (sv) sv.textContent = val;
+    }
+  }
+  updateCompletionBar();
+}
+
+function selectMood(id, val, el) {
+  todayValues[id] = val;
+  el.closest('.mood-row').querySelectorAll('.mood-emoji').forEach((e,i) => e.classList.toggle('selected', i+1===val));
+  const card = document.getElementById(`card-${id}`);
+  if (card) card.classList.add('completed');
+  updateCompletionBar();
+}
+
+function setGratitude(id, idx, val) {
+  if (!todayValues[id]) todayValues[id] = ['','',''];
+  todayValues[id][idx] = val;
+  updateCompletionBar();
+}
+
+function checkComplete(h, v) {
+  if (v === undefined || v === null) return false;
+  if (h.type === 'counter') return v > 0;
+  if (h.type === 'toggle') return v === true;
+  if (h.type === 'slider') return v > 0;
+  if (h.type === 'mood') return v > 0;
+  if (h.type === 'gratitude') return Array.isArray(v) && v.some(s => s?.trim());
+  if (h.type === 'text') return typeof v === 'string' && v.trim().length > 0;
+  return false;
+}
+
+function updateCompletionBar() {
+  const visible = habits.filter(h => h.visible !== false);
+  const done = visible.filter(h => checkComplete(h, todayValues[h.id])).length;
+  const pct = visible.length ? Math.round(done/visible.length*100) : 0;
+  document.getElementById('completion-bar').style.width = pct + '%';
+  document.getElementById('completion-label').textContent = `${done} of ${visible.length} habits logged`;
+}
+
+async function saveToday() {
+  try {
+    const t = await sb.from('dht_logs');
+    await t.upsert({
+      user_id: sb.userId,
+      log_date: todayStr(),
+      values: todayValues,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'user_id,log_date' });
+    showToast('Saved! 🌿');
+    document.getElementById('save-success').style.display = 'block';
+    setTimeout(() => document.getElementById('save-success').style.display = 'none', 2500);
+  } catch(e) {
+    showToast('Save failed. Check connection.');
+  }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// REPORTS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+async function loadReports() {
+  await loadAllLogs();
+  renderStreaks();
+  renderHeatmap();
+  renderWeeklySummary();
+  renderRecords();
+  renderChart(currentChartMetric);
+}
+
+function renderStreaks() {
+  const tracked = habits.filter(h => h.visible && ['counter','toggle'].includes(h.type));
+  const grid = document.getElementById('streaks-grid');
+  grid.innerHTML = tracked.slice(0,6).map(h => {
+    const streak = calcStreak(h.id, h.type);
+    return `<div class="streak-card">
+      <div class="streak-number">${streak}${h.type==='counter'?'':''}</div>
+      <div class="streak-label">${h.emoji||''} ${h.name} streak</div>
+    </div>`;
+  }).join('');
+}
+
+function calcStreak(habitId, type) {
+  let streak = 0;
+  const today = new Date();
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(today); d.setDate(d.getDate() - i);
+    const ds = d.toISOString().slice(0,10);
+    const log = allLogs.find(l => l.log_date === ds);
+    const val = log?.values?.[habitId];
+    const done = type === 'toggle' ? val === true : (val || 0) > 0;
+    if (done) streak++;
+    else if (i > 0) break;
+  }
+  return streak;
+}
+
+function renderHeatmap() {
+  const hm = document.getElementById('heatmap');
+  const days = [];
+  const today = new Date();
+  // Fill to start on Sunday
+  const startDay = new Date(today); startDay.setDate(startDay.getDate() - 27);
+  const dow = startDay.getDay();
+  for (let i = 0; i < dow; i++) days.push(null);
+  for (let i = 0; i < 28; i++) {
+    const d = new Date(startDay); d.setDate(d.getDate() + i);
+    days.push(d.toISOString().slice(0,10));
+  }
+
+  hm.innerHTML = days.map(ds => {
+    if (!ds) return '<div></div>';
+    const log = allLogs.find(l => l.log_date === ds);
+    if (!log) return '<div class="heatmap-day"></div>';
+    const visible = habits.filter(h => h.visible !== false);
+    const done = visible.filter(h => checkComplete(h, log.values?.[h.id])).length;
+    const pct = visible.length ? done/visible.length : 0;
+    const lvl = pct > 0.7 ? 3 : pct > 0.4 ? 2 : pct > 0 ? 1 : 0;
+    return `<div class="heatmap-day level-${lvl}" title="${ds}: ${Math.round(pct*100)}% complete"></div>`;
+  }).join('');
+}
+
+function renderWeeklySummary() {
+  const container = document.getElementById('weekly-summary');
+  const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 6);
+  const weekStr = weekAgo.toISOString().slice(0,10);
+  const weekLogs = allLogs.filter(l => l.log_date >= weekStr);
+
+  const summaries = [];
+
+  // Push-ups total
+  const pushupTotal = weekLogs.reduce((s,l) => s + (l.values?.pushups||0), 0);
+  if (pushupTotal) summaries.push({ label: '💪 Push-ups this week', value: pushupTotal.toLocaleString() + ' reps' });
+
+  const squatTotal = weekLogs.reduce((s,l) => s + (l.values?.squats||0), 0);
+  if (squatTotal) summaries.push({ label: '🦵 Squats this week', value: squatTotal.toLocaleString() + ' reps' });
+
+  const vitaDays = weekLogs.filter(l => l.values?.vitamins).length;
+  summaries.push({ label: '💊 Vitamins taken', value: `${vitaDays} / 7 days` });
+
+  const medTotal = weekLogs.reduce((s,l) => s + (l.values?.meditation||0), 0);
+  summaries.push({ label: '🧘 Meditation', value: medTotal + ' mins' });
+
+  const moodAvg = weekLogs.filter(l => l.values?.mood).reduce((s,l,_,a) => s + l.values.mood/a.length, 0);
+  if (moodAvg) summaries.push({ label: '😊 Avg mood', value: moodAvg.toFixed(1) + ' / 5' });
+
+  const days = new Set(weekLogs.map(l => l.log_date)).size;
+  summaries.push({ label: '📅 Days logged', value: `${days} / 7` });
+
+  container.innerHTML = summaries.map(s =>
+    `<div class="summary-row"><span class="summary-label">${s.label}</span><span class="summary-value">${s.value}</span></div>`
+  ).join('') || '<div style="color:var(--text-2);font-size:0.9rem">No data yet — start tracking!</div>';
+}
+
+function renderRecords() {
+  const container = document.getElementById('records-list');
+  const records = [];
+
+  const maxPushups = Math.max(...allLogs.map(l => l.values?.pushups||0), 0);
+  if (maxPushups) records.push({ label: '💪 Best push-up day', value: maxPushups + ' reps', isPR: true });
+
+  const maxSquats = Math.max(...allLogs.map(l => l.values?.squats||0), 0);
+  if (maxSquats) records.push({ label: '🦵 Best squat day', value: maxSquats + ' reps', isPR: true });
+
+  const totalPushups = allLogs.reduce((s,l) => s + (l.values?.pushups||0), 0);
+  if (totalPushups) records.push({ label: '💪 Total push-ups ever', value: totalPushups.toLocaleString() });
+
+  const totalSquats = allLogs.reduce((s,l) => s + (l.values?.squats||0), 0);
+  if (totalSquats) records.push({ label: '🦵 Total squats ever', value: totalSquats.toLocaleString() });
+
+  const totalMed = allLogs.reduce((s,l) => s + (l.values?.meditation||0), 0);
+  if (totalMed) records.push({ label: '🧘 Total meditation', value: totalMed + ' mins' });
+
+  container.innerHTML = records.map(r =>
+    `<div class="summary-row">
+      <span class="summary-label">${r.label}${r.isPR?'<span class="pr-badge">PR</span>':''}</span>
+      <span class="summary-value">${r.value}</span>
+    </div>`
+  ).join('') || '<div style="color:var(--text-2);font-size:0.9rem">Keep tracking to unlock records!</div>';
+}
+
+function switchChartMetric(metric, btn) {
+  document.querySelectorAll('.report-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  currentChartMetric = metric;
+  renderChart(metric);
+}
+
+function renderChart(metric) {
+  const last30 = [];
+  const today = new Date();
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(today); d.setDate(d.getDate() - i);
+    last30.push(d.toISOString().slice(0,10));
+  }
+
+  const labels = last30.map(d => {
+    const dt = new Date(d + 'T00:00:00');
+    return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  });
+
+  const data = last30.map(ds => {
+    const log = allLogs.find(l => l.log_date === ds);
+    return log?.values?.[metric] || 0;
+  });
+
+  const ctx = document.getElementById('progress-chart').getContext('2d');
+  if (progressChart) progressChart.destroy();
+
+  progressChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        data,
+        backgroundColor: 'rgba(123,110,246,0.25)',
+        borderColor: 'rgba(123,110,246,0.85)',
+        borderWidth: 2,
+        borderRadius: 6,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: {
+          ticks: {
+            maxTicksLimit: 7,
+            font: { family: 'Sora', size: 10 },
+            color: 'rgba(255,255,255,0.35)'
+          },
+          grid: { display: false }
+        },
+        y: {
+          beginAtZero: true,
+          ticks: { font: { family: 'Sora', size: 10 }, color: 'rgba(255,255,255,0.35)' },
+          grid: { color: 'rgba(255,255,255,0.06)' }
+        }
+      }
+    }
+  });
+}
+
+function exportCSV() {
+  if (!allLogs.length) { showToast('No data to export yet!'); return; }
+  const habitIds = habits.map(h => h.id);
+  const headers = ['date', ...habitIds].join(',');
+  const rows = allLogs.map(l => {
+    const vals = habitIds.map(id => {
+      const v = l.values?.[id];
+      if (Array.isArray(v)) return `"${v.join(' | ')}"`;
+      if (typeof v === 'string') return `"${v}"`;
+      return v ?? '';
+    });
+    return [l.log_date, ...vals].join(',');
+  });
+  const csv = [headers, ...rows].join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = `dht-habits-${todayStr()}.csv`;
+  a.click();
+  showToast('CSV downloaded!');
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ADMIN
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function renderAdminHabits() {
+  const container = document.getElementById('admin-habits-list');
+  container.innerHTML = habits.map(h => `
+    <div class="admin-habit-row">
+      <span style="font-size:1.3rem">${h.emoji||'✦'}</span>
+      <div class="admin-habit-info">
+        <div class="admin-habit-name">${h.name}</div>
+        <div class="admin-habit-type">${h.type}${h.unit ? ' · '+h.unit : ''}</div>
+      </div>
+      <label class="toggle-switch">
+        <input type="checkbox" ${h.visible!==false?'checked':''} onchange="toggleHabitVisibility('${h.id}', this.checked)">
+        <span class="toggle-slider"></span>
+      </label>
+      ${!DEFAULT_HABITS.find(d=>d.id===h.id) ? `<button class="btn-danger" onclick="deleteCustomHabit('${h.id}')">×</button>` : ''}
+    </div>
+  `).join('');
+}
+
+async function toggleHabitVisibility(id, visible) {
+  const h = habits.find(h => h.id === id);
+  if (h) h.visible = visible;
+  try {
+    const t = await sb.from('dht_habits');
+    await t.eq('id', id).eq('user_id', sb.userId).update({ visible });
+  } catch {}
+  renderToday();
+}
+
+async function addNewHabit() {
+  const name = document.getElementById('new-habit-name').value.trim();
+  const emoji = document.getElementById('new-habit-emoji').value.trim() || '✦';
+  const type = document.getElementById('new-habit-type').value;
+  const unit = document.getElementById('new-habit-unit').value.trim();
+
+  if (!name) { showToast('Please enter a habit name'); return; }
+
+  const id = 'custom_' + Date.now();
+  const newHabit = {
+    id, name, emoji, type, unit: unit||null,
+    visible: true,
+    user_id: sb.userId,
+    sort_order: habits.length,
+    step: type === 'counter' ? 1 : undefined,
+    count: type === 'gratitude' ? 3 : undefined
+  };
+
+  habits.push(newHabit);
+  try {
+    const t = await sb.from('dht_habits');
+    await t.insert(newHabit);
+  } catch {}
+
+  document.getElementById('new-habit-name').value = '';
+  document.getElementById('new-habit-emoji').value = '';
+  document.getElementById('new-habit-unit').value = '';
+
+  renderAdminHabits();
+  renderToday();
+  showToast(`${emoji} ${name} added!`);
+}
+
+async function deleteCustomHabit(id) {
+  habits = habits.filter(h => h.id !== id);
+  try {
+    const t = await sb.from('dht_habits');
+    await t.eq('id', id).eq('user_id', sb.userId).delete();
+  } catch {}
+  renderAdminHabits();
+  renderToday();
+  showToast('Habit removed');
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// NOTIFICATIONS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function loadNotifSettings() {
+  const enabled = localStorage.getItem('dht_notif') === 'true';
+  const time = localStorage.getItem('dht_notif_time') || '08:00';
+  document.getElementById('notif-toggle').checked = enabled;
+  document.getElementById('notif-time').value = time;
+  document.getElementById('notif-time-wrap').style.display = enabled ? 'block' : 'none';
+}
+
+async function toggleNotifications(enabled) {
+  document.getElementById('notif-time-wrap').style.display = enabled ? 'block' : 'none';
+  if (enabled) {
+    if (!('Notification' in window)) { showToast('Notifications not supported'); return; }
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') { showToast('Notification permission denied'); return; }
+    localStorage.setItem('dht_notif', 'true');
+    scheduleNotification();
+    showToast('Daily reminder set! 🌅');
+  } else {
+    localStorage.setItem('dht_notif', 'false');
+  }
+}
+
+function saveNotifTime() {
+  const time = document.getElementById('notif-time').value;
+  localStorage.setItem('dht_notif_time', time);
+  scheduleNotification();
+  showToast(`Reminder set for ${time}`);
+}
+
+function scheduleNotification() {
+  // ServiceWorker handles actual push; this is a simple local demo approach
+  const time = localStorage.getItem('dht_notif_time') || '08:00';
+  const [h, m] = time.split(':').map(Number);
+  const now = new Date();
+  const next = new Date();
+  next.setHours(h, m, 0, 0);
+  if (next <= now) next.setDate(next.getDate() + 1);
+  const delay = next - now;
+  clearTimeout(window._notifTimer);
+  window._notifTimer = setTimeout(() => {
+    new Notification('🎯 Daily Habit Tracker', { body: "Time to log your daily habits!", icon: '/icon-192.png' });
+    scheduleNotification(); // reschedule for next day
+  }, delay);
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// NAV
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function showPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`page-${name}`).classList.add('active');
+  btn.classList.add('active');
+
+  if (name === 'reports') loadReports();
+  if (name === 'admin') renderAdminHabits();
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// TOAST
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// THEME (light / dark — matches LRBD)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem('dht_theme', theme);
+  const btn = document.getElementById('theme-btn');
+  if (btn) btn.textContent = theme === 'light' ? '🌙' : '☀️';
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') || 'dark';
+  applyTheme(current === 'dark' ? 'light' : 'dark');
+}
+
+function initTheme() {
+  const saved = localStorage.getItem('dht_theme') || 'dark';
+  applyTheme(saved);
+}
+
+// BOOT
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+(async () => {
+  initTheme();
+  const savedToken = localStorage.getItem('dht_token');
+  if (savedToken) {
+    sb.token = savedToken;
+    sb.userId = localStorage.getItem('dht_uid');
+    const ok = await sb.refreshSession();
+    if (ok) { startApp(); return; }
+  }
+  document.getElementById('auth-screen').style.display = 'flex';
+})();
+</script>
+</body>
+</html>
