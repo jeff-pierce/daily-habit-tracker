@@ -1392,8 +1392,9 @@ async function loadHabits() {
         }));
         const t2 = await sb.from('dht_habits');
         await t2.insert(toInsert);
-        // Reload to get the complete set
-        const { data: allData } = await t.eq('user_id', sb.userId).order('sort_order', {ascending:true}).select();
+        // Reload to get the complete set — use fresh query object
+        const t3 = await sb.from('dht_habits');
+        const { data: allData } = await t3.eq('user_id', sb.userId).order('sort_order', {ascending:true}).select();
         habits = allData || [...habits, ...toInsert];
       }
     } else {
@@ -1402,7 +1403,8 @@ async function loadHabits() {
       const t2 = await sb.from('dht_habits');
       await t2.insert(habits);
     }
-  } catch {
+  } catch (e) {
+    console.error('loadHabits error:', e);
     habits = DEFAULT_HABITS;
   }
 }
