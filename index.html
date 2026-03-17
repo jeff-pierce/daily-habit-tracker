@@ -1388,28 +1388,60 @@ async function loadHabits() {
       
       if (missingDefaults.length > 0) {
         const maxSort = habits.length > 0 ? Math.max(...habits.map(h => h.sort_order || 0)) : 0;
-        const toInsert = missingDefaults.map((h, i) => ({
-          ...h,
-          user_id: sb.userId,
-          sort_order: maxSort + 1 + i
-        }));
-        console.log('[loadHabits] Attempting to insert:', toInsert.length, 'defaults');
-        const t2 = await sb.from('dht_habits');
-        const insertResult = await t2.insert(toInsert);
-        console.log('[loadHabits] Insert result:', insertResult);
         
-        // Reload to get the complete set — use fresh query object
+        // Insert defaults one at a time with proper error handling
+        for (let i = 0; i < missingDefaults.length; i++) {
+          const h = missingDefaults[i];
+          const toInsert = {
+            user_id: sb.userId,
+            id: h.id,
+            name: h.name,
+            emoji: h.emoji,
+            type: h.type,
+            visible: h.visible !== false ? true : false,
+            sort_order: maxSort + 1 + i
+          };
+          // Add optional fields only if they exist in the default
+          if (h.unit) toInsert.unit = h.unit;
+          if (h.step !== undefined) toInsert.step = h.step;
+          if (h.count !== undefined) toInsert.count = h.count;
+          
+          console.log('[loadHabits] Inserting:', h.id);
+          const t2 = await sb.from('dht_habits');
+          const result = await t2.insert(toInsert);
+          if (result.error) {
+            console.error('[loadHabits] Insert failed for', h.id, ':', result);
+          }
+        }
+        
+        // Reload to get the complete set
         const t3 = await sb.from('dht_habits');
         const { data: allData } = await t3.eq('user_id', sb.userId).order('sort_order', {ascending:true}).select();
         console.log('[loadHabits] Reloaded after insert:', allData?.length, 'total habits');
-        habits = allData || [...habits, ...toInsert];
+        habits = allData || data;
       }
     } else {
       // First run — seed defaults
       console.log('[loadHabits] First run, seeding defaults');
+      for (let i = 0; i < DEFAULT_HABITS.length; i++) {
+        const h = DEFAULT_HABITS[i];
+        const toInsert = {
+          user_id: sb.userId,
+          id: h.id,
+          name: h.name,
+          emoji: h.emoji,
+          type: h.type,
+          visible: h.visible !== false ? true : false,
+          sort_order: i
+        };
+        if (h.unit) toInsert.unit = h.unit;
+        if (h.step !== undefined) toInsert.step = h.step;
+        if (h.count !== undefined) toInsert.count = h.count;
+        
+        const t2 = await sb.from('dht_habits');
+        await t2.insert(toInsert);
+      }
       habits = DEFAULT_HABITS.map((h,i) => ({...h, user_id: sb.userId, sort_order: i}));
-      const t2 = await sb.from('dht_habits');
-      await t2.insert(habits);
     }
     console.log('[loadHabits] Final habits count:', habits.length);
   } catch (e) {
