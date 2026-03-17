@@ -1372,8 +1372,10 @@ async function startApp() {
 
 async function loadHabits() {
   try {
+    console.log('[loadHabits] Starting...');
     const t = await sb.from('dht_habits');
     const { data } = await t.eq('user_id', sb.userId).order('sort_order', {ascending:true}).select();
+    console.log('[loadHabits] Loaded from DB:', data?.length, 'habits');
     
     if (data && Array.isArray(data)) {
       habits = data;
@@ -1382,6 +1384,7 @@ async function loadHabits() {
       const defaultIds = new Set(DEFAULT_HABITS.map(h => h.id));
       const currentIds = new Set(habits.map(h => h.id));
       const missingDefaults = DEFAULT_HABITS.filter(h => !currentIds.has(h.id));
+      console.log('[loadHabits] Missing defaults:', missingDefaults.length);
       
       if (missingDefaults.length > 0) {
         const maxSort = habits.length > 0 ? Math.max(...habits.map(h => h.sort_order || 0)) : 0;
@@ -1390,21 +1393,27 @@ async function loadHabits() {
           user_id: sb.userId,
           sort_order: maxSort + 1 + i
         }));
+        console.log('[loadHabits] Attempting to insert:', toInsert.length, 'defaults');
         const t2 = await sb.from('dht_habits');
-        await t2.insert(toInsert);
+        const insertResult = await t2.insert(toInsert);
+        console.log('[loadHabits] Insert result:', insertResult);
+        
         // Reload to get the complete set — use fresh query object
         const t3 = await sb.from('dht_habits');
         const { data: allData } = await t3.eq('user_id', sb.userId).order('sort_order', {ascending:true}).select();
+        console.log('[loadHabits] Reloaded after insert:', allData?.length, 'total habits');
         habits = allData || [...habits, ...toInsert];
       }
     } else {
       // First run — seed defaults
+      console.log('[loadHabits] First run, seeding defaults');
       habits = DEFAULT_HABITS.map((h,i) => ({...h, user_id: sb.userId, sort_order: i}));
       const t2 = await sb.from('dht_habits');
       await t2.insert(habits);
     }
+    console.log('[loadHabits] Final habits count:', habits.length);
   } catch (e) {
-    console.error('loadHabits error:', e);
+    console.error('[loadHabits] error:', e);
     habits = DEFAULT_HABITS;
   }
 }
