@@ -1239,6 +1239,27 @@ let currentChartMetric = 'pushups';
 let deferredInstallPrompt = null;
 let selectedDate = todayStr();
 
+function isIsoDate(s) {
+  return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
+}
+
+function parseIsoDate(s) {
+  const d = new Date(`${s}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+async function withTimeout(promise, ms) {
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error('Timed out')), ms);
+  });
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 const todayStr = () => new Date().toISOString().slice(0,10);
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1284,23 +1305,33 @@ function handleLogout() {
 // APP INIT
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 async function startApp() {
-  document.getElementById('auth-screen').style.display = 'none';
-  document.getElementById('app').style.display = 'block';
-  maybeShowInstallButton();
+  try {
+    if (!isIsoDate(selectedDate)) selectedDate = todayStr();
 
-  const datePicker = document.getElementById('log-date-picker');
-  if (datePicker) {
-    datePicker.max = todayStr();
-    datePicker.value = selectedDate;
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    maybeShowInstallButton();
+
+    const datePicker = document.getElementById('log-date-picker');
+    if (datePicker) {
+      datePicker.max = todayStr();
+      datePicker.value = selectedDate;
+    }
+    updateTodayDateHeader();
+    document.getElementById('user-email-display').textContent =
+      localStorage.getItem('dht_email') || '';
+
+    await withTimeout(loadHabits(), 8000);
+    await withTimeout(loadSelectedLog(), 8000);
+    renderToday();
+    loadNotifSettings();
+  } catch (e) {
+    // Fallback ensures UI still becomes usable if any network call hangs.
+    if (!habits.length) habits = DEFAULT_HABITS;
+    if (!todayValues || typeof todayValues !== 'object') todayValues = {};
+    renderToday();
+    showToast('Loaded with limited data. Please try saving again.');
   }
-  updateTodayDateHeader();
-  document.getElementById('user-email-display').textContent =
-    localStorage.getItem('dht_email') || '';
-
-  await loadHabits();
-  await loadSelectedLog();
-  renderToday();
-  loadNotifSettings();
 }
 
 async function loadHabits() {
@@ -1321,8 +1352,9 @@ async function loadHabits() {
 }
 
 function updateTodayDateHeader() {
-  const selected = new Date(`${selectedDate}T00:00:00`);
-  const now = new Date(`${todayStr()}T00:00:00`);
+  if (!isIsoDate(selectedDate)) selectedDate = todayStr();
+  const selected = parseIsoDate(selectedDate) || parseIsoDate(todayStr());
+  const now = parseIsoDate(todayStr());
   const isToday = selectedDate === todayStr();
   const diffDays = Math.round((now - selected) / 86400000);
 
@@ -1336,13 +1368,16 @@ function updateTodayDateHeader() {
 }
 
 async function handleDateChange(newDate) {
-  if (!newDate || newDate === selectedDate) return;
+  if (!newDate || !isIsoDate(newDate) || newDate === selectedDate) return;
   selectedDate = newDate;
   updateTodayDateHeader();
   await loadSelectedLog();
   renderToday();
   document.getElementById('save-success').style.display = 'none';
-  showToast(`Loaded ${new Date(`${selectedDate}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`);
+  const selected = parseIsoDate(selectedDate);
+  if (selected) {
+    showToast(`Loaded ${selected.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`);
+  }
 }
 
 async function loadSelectedLog() {
