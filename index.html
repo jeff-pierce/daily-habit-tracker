@@ -283,6 +283,23 @@
     letter-spacing: 0.02em;
   }
 
+  .date-picker {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.3rem 0.5rem;
+    font-size: 0.72rem;
+    color: var(--text-2);
+    font-family: 'Sora', sans-serif;
+    font-weight: 600;
+    outline: none;
+  }
+
+  .date-picker:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-bg);
+  }
+
   .theme-btn {
     background: var(--surface2);
     border: 1px solid var(--border);
@@ -906,7 +923,11 @@
         <div class="page-title">Today</div>
         <div class="page-subtitle" id="today-subtitle"></div>
       </div>
-      <div class="header-right"><div class="date-badge" id="today-date"></div><button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle theme">🌙</button></div>
+      <div class="header-right">
+        <div class="date-badge" id="today-date"></div>
+        <input class="date-picker" type="date" id="log-date-picker" onchange="handleDateChange(this.value)">
+        <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle theme">🌙</button>
+      </div>
     </div>
 
     <div class="completion-label" id="completion-label">0 of 0 habits logged</div>
@@ -919,7 +940,7 @@
     </div>
 
     <div class="save-bar">
-      <button class="btn-save" onclick="saveToday()">💾 Save Today</button>
+      <button class="btn-save" onclick="saveToday()">💾 Save Entry</button>
       <div class="save-success" id="save-success">💾 Saved!</div>
     </div>
   </div>
@@ -1216,6 +1237,7 @@ let allLogs = [];
 let progressChart = null;
 let currentChartMetric = 'pushups';
 let deferredInstallPrompt = null;
+let selectedDate = todayStr();
 
 const todayStr = () => new Date().toISOString().slice(0,10);
 
@@ -1266,17 +1288,17 @@ async function startApp() {
   document.getElementById('app').style.display = 'block';
   maybeShowInstallButton();
 
-  // Set date display
-  const now = new Date();
-  document.getElementById('today-date').textContent =
-    now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  document.getElementById('today-subtitle').textContent =
-    now.toLocaleDateString('en-US', { weekday: 'long' });
+  const datePicker = document.getElementById('log-date-picker');
+  if (datePicker) {
+    datePicker.max = todayStr();
+    datePicker.value = selectedDate;
+  }
+  updateTodayDateHeader();
   document.getElementById('user-email-display').textContent =
     localStorage.getItem('dht_email') || '';
 
   await loadHabits();
-  await loadTodayLog();
+  await loadSelectedLog();
   renderToday();
   loadNotifSettings();
 }
@@ -1298,10 +1320,36 @@ async function loadHabits() {
   }
 }
 
-async function loadTodayLog() {
+function updateTodayDateHeader() {
+  const selected = new Date(`${selectedDate}T00:00:00`);
+  const now = new Date(`${todayStr()}T00:00:00`);
+  const isToday = selectedDate === todayStr();
+  const diffDays = Math.round((now - selected) / 86400000);
+
+  document.getElementById('today-date').textContent =
+    selected.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+  let subtitle = selected.toLocaleDateString('en-US', { weekday: 'long' });
+  if (isToday) subtitle = `${subtitle} · Today`;
+  else if (diffDays === 1) subtitle = `${subtitle} · Yesterday`;
+  document.getElementById('today-subtitle').textContent = subtitle;
+}
+
+async function handleDateChange(newDate) {
+  if (!newDate || newDate === selectedDate) return;
+  selectedDate = newDate;
+  updateTodayDateHeader();
+  await loadSelectedLog();
+  renderToday();
+  document.getElementById('save-success').style.display = 'none';
+  showToast(`Loaded ${new Date(`${selectedDate}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`);
+}
+
+async function loadSelectedLog() {
+  todayValues = {};
   try {
     const t = await sb.from('dht_logs');
-    const { data } = await t.eq('user_id', sb.userId).eq('log_date', todayStr()).select();
+    const { data } = await t.eq('user_id', sb.userId).eq('log_date', selectedDate).select();
     if (data && data.length > 0) todayValues = data[0].values || {};
   } catch { todayValues = {}; }
 }
@@ -1489,7 +1537,7 @@ async function saveToday() {
     const t = await sb.from('dht_logs');
     await t.upsert({
       user_id: sb.userId,
-      log_date: todayStr(),
+      log_date: selectedDate,
       values: todayValues,
       updated_at: new Date().toISOString()
     }, { onConflict: 'user_id,log_date' });
