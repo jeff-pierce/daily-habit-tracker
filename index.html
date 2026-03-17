@@ -300,6 +300,32 @@
     box-shadow: 0 0 0 2px var(--accent-bg);
   }
 
+  .nav-day-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+    color: var(--text-2);
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+    flex-shrink: 0;
+  }
+  .nav-day-btn:hover { border-color: var(--border2); color: var(--text); background: var(--border); }
+
+  .today-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    background: var(--success);
+    border-radius: 50%;
+    margin-left: 5px;
+    vertical-align: middle;
+    margin-bottom: 1px;
+  }
+
   .theme-btn {
     background: var(--surface2);
     border: 1px solid var(--border);
@@ -924,8 +950,8 @@
         <div class="page-subtitle" id="today-subtitle"></div>
       </div>
       <div class="header-right">
-        <div class="date-badge" id="today-date"></div>
-        <input class="date-picker" type="date" id="log-date-picker" onchange="handleDateChange(this.value)">
+        <button class="nav-day-btn" id="btn-prev-day" onclick="prevDay()" title="Previous day">&#8249;</button>
+        <button class="nav-day-btn" id="btn-next-day" onclick="nextDay()" title="Next day" style="display:none">&#8250;</button>
         <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle theme">🌙</button>
       </div>
     </div>
@@ -1259,7 +1285,7 @@ async function withTimeout(promise, ms) {
   }
 }
 
-const todayStr = () => new Date().toISOString().slice(0,10);
+const todayStr = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
 
 let selectedDate = todayStr();
 
@@ -1313,11 +1339,6 @@ async function startApp() {
     document.getElementById('app').style.display = 'block';
     maybeShowInstallButton();
 
-    const datePicker = document.getElementById('log-date-picker');
-    if (datePicker) {
-      datePicker.max = todayStr();
-      datePicker.value = selectedDate;
-    }
     updateTodayDateHeader();
     document.getElementById('user-email-display').textContent =
       localStorage.getItem('dht_email') || '';
@@ -1352,20 +1373,51 @@ async function loadHabits() {
   }
 }
 
+function getOrdinal(n) {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return s[(v - 20) % 10] || s[v] || s[0];
+}
+
+function dateToIsoStr(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function updateTodayDateHeader() {
   if (!isIsoDate(selectedDate)) selectedDate = todayStr();
   const selected = parseIsoDate(selectedDate) || parseIsoDate(todayStr());
-  const now = parseIsoDate(todayStr());
   const isToday = selectedDate === todayStr();
-  const diffDays = Math.round((now - selected) / 86400000);
 
-  document.getElementById('today-date').textContent =
-    selected.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const day = selected.getDate();
+  const weekday = selected.toLocaleDateString('en-US', { weekday: 'long' });
+  const month = selected.toLocaleDateString('en-US', { month: 'long' });
+  const subtitleText = `${weekday}, ${month} ${day}${getOrdinal(day)}`;
 
-  let subtitle = selected.toLocaleDateString('en-US', { weekday: 'long' });
-  if (isToday) subtitle = `${subtitle} · Today`;
-  else if (diffDays === 1) subtitle = `${subtitle} · Yesterday`;
-  document.getElementById('today-subtitle').textContent = subtitle;
+  const subtitleEl = document.getElementById('today-subtitle');
+  if (isToday) {
+    subtitleEl.innerHTML = `${subtitleText} <span class="today-dot"></span>`;
+  } else {
+    subtitleEl.textContent = subtitleText;
+  }
+
+  const nextBtn = document.getElementById('btn-next-day');
+  if (nextBtn) nextBtn.style.display = isToday ? 'none' : '';
+}
+
+function prevDay() {
+  const d = parseIsoDate(selectedDate) || parseIsoDate(todayStr());
+  d.setDate(d.getDate() - 1);
+  handleDateChange(dateToIsoStr(d));
+}
+
+function nextDay() {
+  const d = parseIsoDate(selectedDate) || parseIsoDate(todayStr());
+  d.setDate(d.getDate() + 1);
+  const nextStr = dateToIsoStr(d);
+  if (nextStr <= todayStr()) handleDateChange(nextStr);
 }
 
 async function handleDateChange(newDate) {
