@@ -1237,7 +1237,6 @@ let allLogs = [];
 let progressChart = null;
 let currentChartMetric = 'pushups';
 let deferredInstallPrompt = null;
-let selectedDate = todayStr();
 
 function isIsoDate(s) {
   return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
@@ -1261,6 +1260,8 @@ async function withTimeout(promise, ms) {
 }
 
 const todayStr = () => new Date().toISOString().slice(0,10);
+
+let selectedDate = todayStr();
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // AUTH
