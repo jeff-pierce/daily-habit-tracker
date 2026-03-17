@@ -1390,6 +1390,13 @@ function dateToIsoStr(d) {
 function updateTodayDateHeader() {
   if (!isIsoDate(selectedDate)) selectedDate = todayStr();
   const selected = parseIsoDate(selectedDate) || parseIsoDate(todayStr());
+  
+  if (!selected) {
+    console.error('Failed to parse date:', selectedDate, todayStr());
+    document.getElementById('today-subtitle').textContent = 'Date error';
+    return;
+  }
+
   const isToday = selectedDate === todayStr();
 
   const day = selected.getDate();
