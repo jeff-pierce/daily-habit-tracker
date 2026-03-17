@@ -4,10 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#0A0A0F">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Daily">
 <link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>Daily Habit Tracker</title>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet">
 <style>
@@ -301,6 +304,17 @@
     padding: 1.05rem 1.15rem;
     margin-bottom: 0.65rem;
     transition: border-color 0.25s, background 0.25s;
+  }
+
+  .habit-pair-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+    margin-bottom: 0.65rem;
+  }
+
+  .habit-pair-grid .habit-card {
+    margin-bottom: 0;
   }
 
   .habit-card.completed {
@@ -734,6 +748,39 @@
 
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+  .install-btn {
+    position: fixed;
+    right: 1rem;
+    bottom: 108px;
+    border: 1px solid var(--border2);
+    background: var(--accent);
+    color: #fff;
+    font-family: 'Sora', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    border-radius: 999px;
+    padding: 0.56rem 0.92rem;
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    gap: 0.38rem;
+    z-index: 999;
+    box-shadow: 0 10px 24px var(--shadow);
+    transition: opacity 0.2s, transform 0.2s;
+  }
+
+  .install-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+
+  @media (max-width: 480px) {
+    .install-btn {
+      right: 0.75rem;
+      bottom: 94px;
+      font-size: 0.76rem;
+      padding: 0.5rem 0.84rem;
+    }
+  }
+
   /* Loading */
   .loading-spinner {
     display: flex;
@@ -1012,6 +1059,7 @@
   </nav>
 </div>
 
+<button class="install-btn" id="install-btn" onclick="installApp()">⬇ Install App</button>
 <div class="toast" id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -1167,6 +1215,7 @@ let todayValues = {};
 let allLogs = [];
 let progressChart = null;
 let currentChartMetric = 'pushups';
+let deferredInstallPrompt = null;
 
 const todayStr = () => new Date().toISOString().slice(0,10);
 
@@ -1215,6 +1264,7 @@ function handleLogout() {
 async function startApp() {
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
+  maybeShowInstallButton();
 
   // Set date display
   const now = new Date();
@@ -1270,7 +1320,35 @@ async function loadAllLogs() {
 function renderToday() {
   const container = document.getElementById('habits-container');
   const visible = habits.filter(h => h.visible !== false);
-  container.innerHTML = visible.map(h => renderHabitCard(h)).join('');
+  const pairGroups = [
+    ['pushups', 'squats'],
+    ['water', 'vitamins'],
+    ['meditation', 'sleep']
+  ];
+  const visibleById = new Map(visible.map(h => [h.id, h]));
+  const used = new Set();
+  const sections = [];
+
+  for (const h of visible) {
+    if (used.has(h.id)) continue;
+
+    const group = pairGroups.find(g => g.includes(h.id));
+    if (group) {
+      const left = visibleById.get(group[0]);
+      const right = visibleById.get(group[1]);
+      if (left && right) {
+        sections.push(`<div class="habit-pair-grid">${renderHabitCard(left)}${renderHabitCard(right)}</div>`);
+        used.add(group[0]);
+        used.add(group[1]);
+        continue;
+      }
+    }
+
+    sections.push(renderHabitCard(h));
+    used.add(h.id);
+  }
+
+  container.innerHTML = sections.join('');
   updateCompletionBar();
 }
 
@@ -1759,8 +1837,11 @@ function scheduleNotification() {
 function showPage(name, btn) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById(`page-${name}`).classList.add('active');
+  const page = document.getElementById(`page-${name}`);
+  page.classList.add('active');
   btn.classList.add('active');
+  window.scrollTo(0, 0);
+  page.scrollTop = 0;
 
   if (name === 'reports') loadReports();
   if (name === 'admin') renderAdminHabits();
@@ -1775,6 +1856,37 @@ function showToast(msg) {
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2500);
 }
+
+function maybeShowInstallButton() {
+  const btn = document.getElementById('install-btn');
+  if (!btn) return;
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  btn.style.display = (!standalone && !!deferredInstallPrompt) ? 'inline-flex' : 'none';
+}
+
+async function installApp() {
+  if (!deferredInstallPrompt) {
+    showToast('Install option is not available yet on this browser.');
+    return;
+  }
+  deferredInstallPrompt.prompt();
+  const { outcome } = await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  maybeShowInstallButton();
+  if (outcome === 'accepted') showToast('Install prompt accepted.');
+}
+
+window.addEventListener('beforeinstallprompt', (event) => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+  maybeShowInstallButton();
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  maybeShowInstallButton();
+  showToast('App installed!');
+});
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -1796,6 +1908,17 @@ function toggleTheme() {
 function initTheme() {
   const saved = localStorage.getItem('dht_theme') || 'dark';
   applyTheme(saved);
+}
+
+// Register a Service Worker so the app can work offline and be installable as a PWA.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    try {
+      await navigator.serviceWorker.register('./sw.js');
+    } catch (err) {
+      console.error('Service worker registration failed:', err);
+    }
+  });
 }
 
 // BOOT
