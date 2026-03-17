@@ -1374,8 +1374,28 @@ async function loadHabits() {
   try {
     const t = await sb.from('dht_habits');
     const { data } = await t.eq('user_id', sb.userId).order('sort_order', {ascending:true}).select();
-    if (data && Array.isArray(data) && data.length > 0) {
+    
+    if (data && Array.isArray(data)) {
       habits = data;
+      
+      // Check if any defaults are missing and re-add them
+      const defaultIds = new Set(DEFAULT_HABITS.map(h => h.id));
+      const currentIds = new Set(habits.map(h => h.id));
+      const missingDefaults = DEFAULT_HABITS.filter(h => !currentIds.has(h.id));
+      
+      if (missingDefaults.length > 0) {
+        const maxSort = habits.length > 0 ? Math.max(...habits.map(h => h.sort_order || 0)) : 0;
+        const toInsert = missingDefaults.map((h, i) => ({
+          ...h,
+          user_id: sb.userId,
+          sort_order: maxSort + 1 + i
+        }));
+        const t2 = await sb.from('dht_habits');
+        await t2.insert(toInsert);
+        // Reload to get the complete set
+        const { data: allData } = await t.eq('user_id', sb.userId).order('sort_order', {ascending:true}).select();
+        habits = allData || [...habits, ...toInsert];
+      }
     } else {
       // First run — seed defaults
       habits = DEFAULT_HABITS.map((h,i) => ({...h, user_id: sb.userId, sort_order: i}));
