@@ -823,6 +823,88 @@
       font-size: 0.76rem;
       padding: 0.5rem 0.84rem;
     }
+
+    .page {
+      padding: 1.2rem 0.95rem 1rem;
+    }
+
+    .page-title {
+      font-size: 1.85rem;
+    }
+
+    .page-subtitle {
+      font-size: 0.92rem;
+      font-weight: 400;
+    }
+
+    .nav-day-btn,
+    .theme-btn {
+      width: 36px;
+      height: 36px;
+    }
+
+    .habit-label {
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+    }
+
+    .toggle-label,
+    .summary-label,
+    .admin-habit-name,
+    .notif-label {
+      font-size: 0.98rem;
+    }
+
+    .counter-unit,
+    .summary-value,
+    .admin-habit-type,
+    .completion-label,
+    .save-success,
+    .report-tab,
+    .btn-export,
+    .btn-add,
+    .btn-logout,
+    .time-input,
+    .gratitude-input,
+    .admin-form input,
+    .admin-form select,
+    .toast {
+      font-size: 0.95rem;
+    }
+
+    .heatmap-day-label,
+    .streak-label,
+    .nav-btn {
+      font-size: 0.68rem;
+    }
+
+    .btn-save {
+      font-size: 1.02rem;
+      padding: 0.95rem;
+    }
+
+    .btn-danger {
+      font-size: 0.82rem;
+      padding: 0.35rem 0.58rem;
+    }
+  }
+
+  @media (max-width: 380px) {
+    .page-title {
+      font-size: 1.72rem;
+    }
+
+    .page-subtitle {
+      font-size: 0.86rem;
+    }
+
+    .header-right {
+      gap: 0.4rem;
+    }
+
+    .habit-pair-grid {
+      gap: 0.5rem;
+    }
   }
 
   /* Loading */
@@ -1255,6 +1337,27 @@ const DEFAULT_HABITS = [
   { id: 'gratitude',  name: 'Grateful For',  emoji: '🙏', type: 'gratitude', count: 3,     visible: true },
 ];
 
+const DEFAULT_HABIT_INDEX = new Map(DEFAULT_HABITS.map((h, i) => [h.id, i]));
+
+function sortHabitsForDisplay(list) {
+  return [...(list || [])].sort((a, b) => {
+    const aDefault = DEFAULT_HABIT_INDEX.has(a.id);
+    const bDefault = DEFAULT_HABIT_INDEX.has(b.id);
+
+    if (aDefault && bDefault) {
+      return DEFAULT_HABIT_INDEX.get(a.id) - DEFAULT_HABIT_INDEX.get(b.id);
+    }
+    if (aDefault) return -1;
+    if (bDefault) return 1;
+
+    const aSort = a.sort_order ?? Number.MAX_SAFE_INTEGER;
+    const bSort = b.sort_order ?? Number.MAX_SAFE_INTEGER;
+    if (aSort !== bSort) return aSort - bSort;
+
+    return (a.name || '').localeCompare(b.name || '');
+  });
+}
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // STATE
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1372,22 +1475,20 @@ async function startApp() {
 
 async function loadHabits() {
   try {
-    console.log('[loadHabits] Starting...');
     const t = await sb.from('dht_habits');
     const { data } = await t.eq('user_id', sb.userId).order('sort_order', {ascending:true}).select();
-    console.log('[loadHabits] Loaded from DB:', data?.length, 'habits');
     
     if (data && Array.isArray(data)) {
-      habits = data;
+      habits = sortHabitsForDisplay(data);
       
       // Check if any defaults are missing and re-add them
       const defaultIds = new Set(DEFAULT_HABITS.map(h => h.id));
       const currentIds = new Set(habits.map(h => h.id));
       const missingDefaults = DEFAULT_HABITS.filter(h => !currentIds.has(h.id));
-      console.log('[loadHabits] Missing defaults:', missingDefaults.length);
       
       if (missingDefaults.length > 0) {
         const maxSort = habits.length > 0 ? Math.max(...habits.map(h => h.sort_order || 0)) : 0;
+        const successfulInserts = [];
         
         // Insert defaults one at a time with proper error handling
         for (let i = 0; i < missingDefaults.length; i++) {
@@ -1406,23 +1507,29 @@ async function loadHabits() {
           if (h.step !== undefined) toInsert.step = h.step;
           if (h.count !== undefined) toInsert.count = h.count;
           
-          console.log('[loadHabits] Inserting:', h.id);
           const t2 = await sb.from('dht_habits');
           const result = await t2.insert(toInsert);
           if (result.error) {
-            console.error('[loadHabits] Insert failed for', h.id, ':', result);
+            // Still add to local list so user can see it
+            successfulInserts.push(toInsert);
+          } else {
+            successfulInserts.push(toInsert);
           }
         }
         
         // Reload to get the complete set
         const t3 = await sb.from('dht_habits');
         const { data: allData } = await t3.eq('user_id', sb.userId).order('sort_order', {ascending:true}).select();
-        console.log('[loadHabits] Reloaded after insert:', allData?.length, 'total habits');
-        habits = allData || data;
+        
+        // If reload got more, use those; otherwise merge with local inserts
+        if (allData && allData.length > habits.length) {
+          habits = sortHabitsForDisplay(allData);
+        } else if (successfulInserts.length > 0) {
+          habits = sortHabitsForDisplay([...habits, ...successfulInserts]);
+        }
       }
     } else {
       // First run — seed defaults
-      console.log('[loadHabits] First run, seeding defaults');
       for (let i = 0; i < DEFAULT_HABITS.length; i++) {
         const h = DEFAULT_HABITS[i];
         const toInsert = {
@@ -1441,12 +1548,11 @@ async function loadHabits() {
         const t2 = await sb.from('dht_habits');
         await t2.insert(toInsert);
       }
-      habits = DEFAULT_HABITS.map((h,i) => ({...h, user_id: sb.userId, sort_order: i}));
+      habits = sortHabitsForDisplay(DEFAULT_HABITS.map((h,i) => ({...h, user_id: sb.userId, sort_order: i})));
     }
-    console.log('[loadHabits] Final habits count:', habits.length);
   } catch (e) {
-    console.error('[loadHabits] error:', e);
-    habits = DEFAULT_HABITS;
+    console.error('loadHabits error:', e);
+    habits = sortHabitsForDisplay(DEFAULT_HABITS);
   }
 }
 
@@ -1967,17 +2073,22 @@ async function addNewHabit() {
 
   if (!name) { showToast('Please enter a habit name'); return; }
 
+  const customHabits = habits.filter(h => !DEFAULT_HABIT_INDEX.has(h.id));
+  const nextCustomSort = customHabits.length
+    ? Math.max(...customHabits.map(h => h.sort_order ?? 0)) + 1
+    : 0;
+
   const id = 'custom_' + Date.now();
   const newHabit = {
     id, name, emoji, type, unit: unit||null,
     visible: true,
     user_id: sb.userId,
-    sort_order: habits.length,
+    sort_order: nextCustomSort,
     step: type === 'counter' ? 1 : undefined,
     count: type === 'gratitude' ? 3 : undefined
   };
 
-  habits.push(newHabit);
+  habits = sortHabitsForDisplay([...habits, newHabit]);
   try {
     const t = await sb.from('dht_habits');
     await t.insert(newHabit);
