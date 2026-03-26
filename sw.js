@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dht-v1';
+const CACHE_NAME = 'dht-v2';
 const APP_SHELL = [
   './',
   './index.html',

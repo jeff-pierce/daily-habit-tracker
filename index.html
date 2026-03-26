@@ -95,6 +95,20 @@
     text-align: center;
   }
 
+  .auth-helper {
+    font-size: 0.78rem;
+    color: var(--text-2);
+    line-height: 1.6;
+    margin-top: 0.85rem;
+  }
+
+  .auth-success {
+    color: var(--success);
+    font-size: 0.8rem;
+    margin-top: 0.9rem;
+    min-height: 1.2rem;
+  }
+
   .auth-logo {
     font-size: 1.6rem;
     font-weight: 700;
@@ -716,6 +730,138 @@
 
   .btn-add:hover { opacity: 0.88; }
 
+  .section-copy {
+    font-size: 0.78rem;
+    color: var(--text-2);
+    margin: -0.55rem 0 0.95rem;
+    line-height: 1.55;
+  }
+
+  .admin-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .admin-user-card,
+  .invite-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 0.9rem;
+  }
+
+  .admin-user-top,
+  .invite-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.8rem;
+    align-items: flex-start;
+  }
+
+  .admin-user-email,
+  .invite-email {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text);
+    word-break: break-word;
+  }
+
+  .admin-user-meta,
+  .invite-meta {
+    font-size: 0.72rem;
+    color: var(--text-2);
+    margin-top: 0.25rem;
+    line-height: 1.5;
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 0.28rem 0.58rem;
+    border: 1px solid var(--border2);
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-2);
+    white-space: nowrap;
+  }
+
+  .pill.admin {
+    color: #0A0A0F;
+    background: var(--gold);
+    border-color: transparent;
+  }
+
+  .pill.pending {
+    background: var(--accent-bg);
+    color: var(--accent2);
+    border-color: transparent;
+  }
+
+  .metric-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem;
+    margin-top: 0.75rem;
+  }
+
+  .metric-card {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.7rem 0.75rem;
+  }
+
+  .metric-label {
+    font-size: 0.64rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    font-weight: 700;
+    margin-bottom: 0.22rem;
+  }
+
+  .metric-value {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.03em;
+  }
+
+  .inline-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-top: 0.75rem;
+  }
+
+  .btn-secondary {
+    padding: 0.6rem 0.8rem;
+    background: transparent;
+    border: 1px solid var(--border2);
+    border-radius: 9px;
+    color: var(--text);
+    font-family: 'Sora', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s, background 0.2s;
+  }
+
+  .btn-secondary:hover {
+    border-color: var(--accent);
+    color: var(--accent2);
+  }
+
+  .empty-state {
+    color: var(--text-2);
+    font-size: 0.86rem;
+    line-height: 1.6;
+  }
+
   .notif-row {
     display: flex;
     align-items: center;
@@ -990,8 +1136,8 @@
     <div class="auth-tagline">Show up every day.<strong>Consistently over intensity.</strong></div>
 
     <div class="auth-tabs">
-      <button class="auth-tab active" onclick="switchAuthTab('login')">Sign In</button>
-      <button class="auth-tab" onclick="switchAuthTab('signup')">Create Account</button>
+      <button class="auth-tab active" onclick="switchAuthTab('login')">Magic Link</button>
+      <button class="auth-tab" onclick="switchAuthTab('signup')">Invite Help</button>
     </div>
 
     <div id="login-form">
@@ -999,26 +1145,21 @@
         <label>Email</label>
         <input type="email" id="login-email" placeholder="you@example.com" autocomplete="email">
       </div>
-      <div class="form-group">
-        <label>Password</label>
-        <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
-      </div>
-      <button class="btn-primary" onclick="handleLogin()">Sign In</button>
+      <button class="btn-primary" onclick="handleLogin()">Email Me a Sign-In Link</button>
+      <div class="auth-helper">Use the email address tied to your Daily Habits account. You will receive a one-time magic link to sign in.</div>
     </div>
 
     <div id="signup-form" style="display:none">
-      <div class="form-group">
-        <label>Email</label>
-        <input type="email" id="signup-email" placeholder="you@example.com">
+      <div class="auth-helper" style="margin-top:0">
+        New accounts are created through invites. If you were invited, open the email you received and use the magic link there to finish creating your account.
       </div>
-      <div class="form-group">
-        <label>Password</label>
-        <input type="password" id="signup-password" placeholder="Min. 6 characters">
+      <div class="auth-helper">
+        If you need access, contact the Daily Habits admin and ask for an invitation.
       </div>
-      <button class="btn-primary" onclick="handleSignup()">Create Account</button>
     </div>
 
     <div class="auth-error" id="auth-error"></div>
+    <div class="auth-success" id="auth-success"></div>
   </div>
 </div>
 
@@ -1111,11 +1252,11 @@
     <button class="btn-export" onclick="exportCSV()">⬇ Export All Data as CSV</button>
   </div>
 
-  <!-- ADMIN PAGE -->
-  <div class="page" id="page-admin">
+  <!-- SETTINGS PAGE -->
+  <div class="page" id="page-settings">
     <div class="page-header">
       <div>
-        <div class="page-title">Admin</div>
+        <div class="page-title">Settings</div>
         <div class="page-subtitle">customize your tracker</div>
       </div>
     </div>
@@ -1131,6 +1272,18 @@
       </div>
       <div id="notif-time-wrap" style="display:none">
         <input type="time" class="time-input" id="notif-time" value="08:00" onchange="saveNotifTime()">
+      </div>
+    </div>
+
+    <div class="admin-section">
+      <h3>✉ Weekly Email Summary</h3>
+      <div class="section-copy">Receive a weekly email summary of your recent habit activity. You can turn this off any time.</div>
+      <div class="notif-row">
+        <span class="notif-label">Weekly summary emails</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="weekly-summary-toggle" onchange="toggleWeeklySummary(this.checked)">
+          <span class="toggle-slider"></span>
+        </label>
       </div>
     </div>
 
@@ -1165,6 +1318,51 @@
     </div>
   </div>
 
+  <!-- ADMIN PAGE -->
+  <div class="page" id="page-admin">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Admin</div>
+        <div class="page-subtitle">users, invites, and access control</div>
+      </div>
+    </div>
+
+    <div id="admin-access-denied" class="admin-section" style="display:none">
+      <h3>Restricted</h3>
+      <div class="empty-state">This area is only available to administrators.</div>
+    </div>
+
+    <div id="admin-panel" style="display:none">
+      <div class="admin-section">
+        <h3>✉ Invite User</h3>
+        <div class="section-copy">Send a magic-link invite email to create a Daily Habits account. New users are regular users by default.</div>
+        <div class="admin-form">
+          <input type="email" id="invite-email" placeholder="Email address">
+          <select id="invite-role">
+            <option value="user">Regular user</option>
+            <option value="admin">Admin</option>
+          </select>
+          <button class="btn-add" onclick="sendInvite()">Send Invite</button>
+        </div>
+      </div>
+
+      <div class="admin-section">
+        <h3>👥 Users</h3>
+        <div class="section-copy">Active days and streaks are based on habit check activity from your existing logs.</div>
+        <div id="admin-users-list" class="admin-list">
+          <div class="loading-spinner"><div class="spinner"></div></div>
+        </div>
+      </div>
+
+      <div class="admin-section">
+        <h3>📨 Pending Invites</h3>
+        <div id="pending-invites-list" class="admin-list">
+          <div class="loading-spinner"><div class="spinner"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- BOTTOM NAV -->
   <nav class="bottom-nav">
     <button class="nav-btn active" onclick="showPage('today', this)">
@@ -1179,10 +1377,17 @@
       </svg>
       Reports
     </button>
-    <button class="nav-btn" onclick="showPage('admin', this)">
+    <button class="nav-btn" onclick="showPage('settings', this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="12" cy="12" r="3"/>
         <path d="M12 2v2m0 16v2M4.22 4.22l1.42 1.42m12.72 12.72 1.42 1.42M2 12h2m16 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+      </svg>
+      Settings
+    </button>
+    <button class="nav-btn" id="admin-nav-btn" onclick="showPage('admin', this)" style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 3l7 4v5c0 5-3.5 8.5-7 9-3.5-.5-7-4-7-9V7l7-4z"/>
+        <path d="M9.5 12.5l1.5 1.5 3.5-4"/>
       </svg>
       Admin
     </button>
@@ -1199,6 +1404,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 const SUPABASE_URL = 'https://biyzgnlqhsszxuspqhqz.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_U1hB19oZ9uLhdZx-VHXEng_s8_CmdW0';
+const APP_BASE_URL = window.location.origin;
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // SUPABASE CLIENT (vanilla fetch-based, no SDK needed)
@@ -1206,6 +1412,7 @@ const SUPABASE_ANON_KEY = 'sb_publishable_U1hB19oZ9uLhdZx-VHXEng_s8_CmdW0';
 const sb = {
   token: null,
   userId: null,
+  email: null,
 
   headers(extra={}) {
     return {
@@ -1216,31 +1423,43 @@ const sb = {
     };
   },
 
-  async signIn(email, password) {
-    const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+  async requestMagicLink(email) {
+    const r = await fetch(`${SUPABASE_URL}/auth/v1/otp`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({
+        email,
+        create_user: false,
+        data: { email },
+        options: {
+          emailRedirectTo: `${APP_BASE_URL}/`
+        }
+      })
     });
     const d = await r.json();
-    if (d.error) throw new Error(d.error_description || d.error);
-    this.token = d.access_token;
-    this.userId = d.user.id;
-    localStorage.setItem('dht_token', d.access_token);
-    localStorage.setItem('dht_refresh', d.refresh_token);
-    localStorage.setItem('dht_uid', d.user.id);
-    localStorage.setItem('dht_email', d.user.email);
+    if (!r.ok || d.error) throw new Error(d.error_description || d.error || 'Unable to send sign-in link');
     return d;
   },
 
-  async signUp(email, password) {
-    const r = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
-      body: JSON.stringify({ email, password })
+  async exchangeTokens(accessToken, refreshToken) {
+    this.token = accessToken;
+    localStorage.setItem('dht_token', accessToken);
+    if (refreshToken) localStorage.setItem('dht_refresh', refreshToken);
+
+    const user = await this.getUser();
+    this.userId = user?.id || null;
+    this.email = user?.email || null;
+    if (this.userId) localStorage.setItem('dht_uid', this.userId);
+    if (this.email) localStorage.setItem('dht_email', this.email);
+    return user;
+  },
+
+  async getUser() {
+    const r = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: this.headers()
     });
     const d = await r.json();
-    if (d.error) throw new Error(d.error_description || d.error);
+    if (!r.ok || d.error) throw new Error(d.error_description || d.error || 'Unable to load user');
     return d;
   },
 
@@ -1254,18 +1473,39 @@ const sb = {
         body: JSON.stringify({ refresh_token: refresh })
       });
       const d = await r.json();
-      if (d.error) return false;
-      this.token = d.access_token;
-      this.userId = d.user.id;
-      localStorage.setItem('dht_token', d.access_token);
-      localStorage.setItem('dht_refresh', d.refresh_token);
+      if (!r.ok || d.error) return false;
+      await this.exchangeTokens(d.access_token, d.refresh_token);
       return true;
     } catch { return false; }
   },
 
+  async consumeMagicLinkFromUrl() {
+    const hash = window.location.hash.replace(/^#/, '');
+    const params = new URLSearchParams(hash);
+    const accessToken = params.get('access_token');
+    const refreshToken = params.get('refresh_token');
+    if (!accessToken) return false;
+    await this.exchangeTokens(accessToken, refreshToken);
+    history.replaceState({}, document.title, window.location.pathname + window.location.search);
+    return true;
+  },
+
   signOut() {
-    this.token = null; this.userId = null;
+    this.token = null;
+    this.userId = null;
+    this.email = null;
     ['dht_token','dht_refresh','dht_uid','dht_email'].forEach(k => localStorage.removeItem(k));
+  },
+
+  async rpc(fn, body={}) {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+      method: 'POST',
+      headers: this.headers(),
+      body: JSON.stringify(body)
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.message || d.error || `RPC ${fn} failed`);
+    return d;
   },
 
   async from(table) {
@@ -1367,6 +1607,9 @@ let allLogs = [];
 let progressChart = null;
 let currentChartMetric = 'pushups';
 let deferredInstallPrompt = null;
+let currentUserProfile = null;
+let adminUsers = [];
+let pendingInvites = [];
 
 function isIsoDate(s) {
   return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
@@ -1414,35 +1657,35 @@ function switchAuthTab(tab) {
   document.getElementById('login-form').style.display = tab==='login'?'block':'none';
   document.getElementById('signup-form').style.display = tab==='signup'?'block':'none';
   document.getElementById('auth-error').textContent = '';
+  document.getElementById('auth-success').textContent = '';
 }
 
 async function handleLogin() {
   const email = document.getElementById('login-email').value.trim();
-  const password = document.getElementById('login-password').value;
+  if (!email) {
+    document.getElementById('auth-error').textContent = 'Enter your email address.';
+    return;
+  }
   try {
-    await sb.signIn(email, password);
-    startApp();
+    await sb.requestMagicLink(email);
+    document.getElementById('auth-error').textContent = '';
+    document.getElementById('auth-success').textContent = 'Check your email for a secure sign-in link.';
   } catch(e) {
     document.getElementById('auth-error').textContent = e.message;
   }
 }
 
 async function handleSignup() {
-  const email = document.getElementById('signup-email').value.trim();
-  const password = document.getElementById('signup-password').value;
-  try {
-    await sb.signUp(email, password);
-    showToast('Account created! Please check your email to confirm.');
-    switchAuthTab('login');
-  } catch(e) {
-    document.getElementById('auth-error').textContent = e.message;
-  }
+  switchAuthTab('signup');
 }
 
 function handleLogout() {
   sb.signOut();
   document.getElementById('app').style.display = 'none';
   document.getElementById('auth-screen').style.display = 'flex';
+  currentUserProfile = null;
+  adminUsers = [];
+  pendingInvites = [];
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1456,14 +1699,17 @@ async function startApp() {
     document.getElementById('app').style.display = 'block';
     maybeShowInstallButton();
 
+    await withTimeout(loadCurrentProfile(), 8000);
     updateTodayDateHeader();
     document.getElementById('user-email-display').textContent =
-      localStorage.getItem('dht_email') || '';
+      sb.email || localStorage.getItem('dht_email') || '';
+    updateAdminVisibility();
 
     await withTimeout(loadHabits(), 8000);
     await withTimeout(loadSelectedLog(), 8000);
     renderToday();
     loadNotifSettings();
+    renderSettingsPreferences();
   } catch (e) {
     // Fallback ensures UI still becomes usable if any network call hangs.
     if (!habits.length) habits = DEFAULT_HABITS;
@@ -1471,6 +1717,32 @@ async function startApp() {
     renderToday();
     showToast('Loaded with limited data. Please try saving again.');
   }
+}
+
+async function loadCurrentProfile() {
+  const t = await sb.from('dht_profiles');
+  const { data } = await t.eq('user_id', sb.userId).select();
+  currentUserProfile = Array.isArray(data) ? data[0] || null : null;
+  return currentUserProfile;
+}
+
+function isAdmin() {
+  return currentUserProfile?.role === 'admin';
+}
+
+function updateAdminVisibility() {
+  const btn = document.getElementById('admin-nav-btn');
+  if (btn) btn.style.display = isAdmin() ? 'flex' : 'none';
+
+  const panel = document.getElementById('admin-panel');
+  const denied = document.getElementById('admin-access-denied');
+  if (panel) panel.style.display = isAdmin() ? 'block' : 'none';
+  if (denied) denied.style.display = isAdmin() ? 'none' : 'block';
+}
+
+function renderSettingsPreferences() {
+  const toggle = document.getElementById('weekly-summary-toggle');
+  if (toggle) toggle.checked = currentUserProfile?.weekly_summary_enabled !== false;
 }
 
 async function loadHabits() {
@@ -2055,6 +2327,149 @@ function renderAdminHabits() {
   `).join('');
 }
 
+async function toggleWeeklySummary(enabled) {
+  if (!currentUserProfile) return;
+  currentUserProfile.weekly_summary_enabled = enabled;
+  try {
+    const t = await sb.from('dht_profiles');
+    await t.eq('user_id', sb.userId).update({ weekly_summary_enabled: enabled });
+    showToast(enabled ? 'Weekly summaries enabled' : 'Weekly summaries turned off');
+  } catch {
+    showToast('Could not update email preference');
+  }
+}
+
+async function loadAdminUsers() {
+  if (!isAdmin()) return [];
+  const t = await sb.from('dht_admin_user_metrics');
+  const { data } = await t.order('created_at', { ascending: true }).select();
+  adminUsers = Array.isArray(data) ? data : [];
+  return adminUsers;
+}
+
+async function loadPendingInvites() {
+  if (!isAdmin()) return [];
+  const t = await sb.from('dht_invites');
+  const { data } = await t.eq('status', 'pending').order('created_at', { ascending: false }).select();
+  pendingInvites = Array.isArray(data) ? data : [];
+  return pendingInvites;
+}
+
+function renderAdminUsers() {
+  const container = document.getElementById('admin-users-list');
+  if (!container) return;
+  if (!adminUsers.length) {
+    container.innerHTML = '<div class="empty-state">No users found yet.</div>';
+    return;
+  }
+
+  container.innerHTML = adminUsers.map((user) => `
+    <div class="admin-user-card">
+      <div class="admin-user-top">
+        <div>
+          <div class="admin-user-email">${user.email}</div>
+          <div class="admin-user-meta">Joined ${new Date(user.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+        </div>
+        <span class="pill ${user.role === 'admin' ? 'admin' : ''}">${user.role}</span>
+      </div>
+      <div class="metric-grid">
+        <div class="metric-card">
+          <div class="metric-label">Active Days</div>
+          <div class="metric-value">${user.active_days_last_30}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Current Streak</div>
+          <div class="metric-value">${user.streak_days}</div>
+        </div>
+      </div>
+      <div class="inline-actions">
+        <button class="btn-secondary" onclick="toggleAdminRole('${user.user_id}', '${user.role}')">${user.role === 'admin' ? 'Make User' : 'Make Admin'}</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderPendingInvites() {
+  const container = document.getElementById('pending-invites-list');
+  if (!container) return;
+  if (!pendingInvites.length) {
+    container.innerHTML = '<div class="empty-state">No pending invites.</div>';
+    return;
+  }
+
+  container.innerHTML = pendingInvites.map((invite) => `
+    <div class="invite-card">
+      <div class="invite-top">
+        <div>
+          <div class="invite-email">${invite.email}</div>
+          <div class="invite-meta">Role: ${invite.role} · Sent ${invite.last_sent_at ? new Date(invite.last_sent_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'not yet'}</div>
+        </div>
+        <span class="pill pending">pending</span>
+      </div>
+      <div class="inline-actions">
+        <button class="btn-secondary" onclick="sendInvite('${invite.email}', '${invite.role}', true, ${invite.resend_count || 0})">Resend Invite</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function refreshAdminPanel() {
+  if (!isAdmin()) return;
+  await Promise.all([loadAdminUsers(), loadPendingInvites()]);
+  renderAdminUsers();
+  renderPendingInvites();
+}
+
+async function toggleAdminRole(userId, currentRole) {
+  if (!isAdmin()) return;
+  const nextRole = currentRole === 'admin' ? 'user' : 'admin';
+  try {
+    const t = await sb.from('dht_profiles');
+    await t.eq('user_id', userId).update({ role: nextRole });
+    if (currentUserProfile?.user_id === userId) currentUserProfile.role = nextRole;
+    await refreshAdminPanel();
+    updateAdminVisibility();
+    showToast(`Role updated to ${nextRole}`);
+  } catch {
+    showToast('Could not update role');
+  }
+}
+
+async function sendInvite(prefilledEmail, prefilledRole, incrementResend = false, currentResendCount = 0) {
+  if (!isAdmin()) return;
+
+  const email = (prefilledEmail || document.getElementById('invite-email').value).trim().toLowerCase();
+  const role = prefilledRole || document.getElementById('invite-role').value;
+  if (!email) {
+    showToast('Enter an email address');
+    return;
+  }
+
+  try {
+    const response = await fetch('/.netlify/functions/send-invite', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${sb.token}`
+      },
+      body: JSON.stringify({ email, role, incrementResend, currentResendCount })
+    });
+
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Invite failed');
+
+    if (!prefilledEmail) {
+      document.getElementById('invite-email').value = '';
+      document.getElementById('invite-role').value = 'user';
+    }
+
+    await refreshAdminPanel();
+    showToast(`Invite sent to ${email}`);
+  } catch (error) {
+    showToast(error.message || 'Invite failed');
+  }
+}
+
 async function toggleHabitVisibility(id, visible) {
   const h = habits.find(h => h.id === id);
   if (h) h.visible = visible;
@@ -2175,7 +2590,8 @@ function showPage(name, btn) {
   page.scrollTop = 0;
 
   if (name === 'reports') loadReports();
-  if (name === 'admin') renderAdminHabits();
+  if (name === 'settings') renderAdminHabits();
+  if (name === 'admin') refreshAdminPanel();
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -2256,10 +2672,22 @@ if ('serviceWorker' in navigator) {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 (async () => {
   initTheme();
+  try {
+    const consumed = await sb.consumeMagicLinkFromUrl();
+    if (consumed) {
+      await startApp();
+      showToast('Signed in successfully');
+      return;
+    }
+  } catch (error) {
+    document.getElementById('auth-error').textContent = error.message;
+  }
+
   const savedToken = localStorage.getItem('dht_token');
   if (savedToken) {
     sb.token = savedToken;
     sb.userId = localStorage.getItem('dht_uid');
+    sb.email = localStorage.getItem('dht_email');
     const ok = await sb.refreshSession();
     if (ok) { startApp(); return; }
   }
