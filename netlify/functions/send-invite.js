@@ -17,6 +17,10 @@ function getBaseUrl(headers) {
     : process.env.PUBLIC_APP_URL;
 }
 
+function getActionLink(otpData) {
+  return otpData?.action_link || otpData?.properties?.action_link || otpData?.data?.action_link || otpData?.hashed_token_url || null;
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return json(405, { error: 'Method not allowed' });
@@ -131,9 +135,12 @@ exports.handler = async (event) => {
       return json(500, { error: otpData.msg || 'Failed to generate magic link' });
     }
 
-    const actionLink = otpData.properties?.action_link;
+    const actionLink = getActionLink(otpData);
     if (!actionLink) {
-      return json(500, { error: 'Supabase did not return an action link' });
+      return json(500, {
+        error: 'Supabase did not return an action link',
+        details: otpData
+      });
     }
 
     const appName = 'Daily Habits';
