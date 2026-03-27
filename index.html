@@ -330,6 +330,30 @@
   .nav-day-btn:hover:not(:disabled) { border-color: var(--border2); color: var(--text); background: var(--border); }
   .nav-day-btn:disabled { opacity: 0.3; cursor: default; }
 
+  .reorder-btns {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-right: 2px;
+  }
+  .reorder-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    width: 22px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.55rem;
+    color: var(--text-2);
+    padding: 0;
+    line-height: 1;
+  }
+  .reorder-btn:hover:not(:disabled) { background: var(--border); color: var(--text); }
+  .reorder-btn:disabled { opacity: 0.25; cursor: default; }
+
   .page-title-today {
     cursor: pointer;
     transition: color 0.15s;
@@ -1211,14 +1235,14 @@
       </div>
     </div>
 
-    <div class="report-section">
+    <div class="report-section" data-section-id="streaks">
       <h3>🔥 Current Streaks</h3>
       <div class="streak-grid" id="streaks-grid">
         <div class="loading-spinner" style="grid-column:1/-1"><div class="spinner"></div></div>
       </div>
     </div>
 
-    <div class="report-section">
+    <div class="report-section" data-section-id="heatmap">
       <h3>📅 Completion Heatmap <small style="font-size:0.75rem;color:var(--text-2);font-weight:300"> — last 28 days</small></h3>
       <div class="heatmap-labels">
         <div class="heatmap-day-label">S</div><div class="heatmap-day-label">M</div>
@@ -1229,7 +1253,7 @@
       <div class="heatmap" id="heatmap"></div>
     </div>
 
-    <div class="report-section">
+    <div class="report-section" data-section-id="exercise">
       <h3>📈 Exercise Progress</h3>
       <div class="report-tabs">
         <button class="report-tab active" onclick="switchChartMetric('pushups', this)">Push-ups</button>
@@ -1242,21 +1266,21 @@
       </div>
     </div>
 
-    <div class="report-section">
+    <div class="report-section" data-section-id="week">
       <h3>📊 This Week</h3>
       <div class="weekly-summary" id="weekly-summary">
         <div class="loading-spinner"><div class="spinner"></div></div>
       </div>
     </div>
 
-    <div class="report-section">
+    <div class="report-section" data-section-id="ytd">
       <h3>🗓 Year-to-Date</h3>
       <div class="weekly-summary" id="ytd-summary">
         <div class="loading-spinner"><div class="spinner"></div></div>
       </div>
     </div>
 
-    <div class="report-section">
+    <div class="report-section" data-section-id="records">
       <h3>🏆 Personal Records</h3>
       <div class="weekly-summary" id="records-list">
         <div class="loading-spinner"><div class="spinner"></div></div>
@@ -1302,7 +1326,13 @@
     </div>
 
     <div class="admin-section">
-      <h3>👁 Show / Hide Habits</h3>
+      <h3>� Report Sections</h3>
+      <div class="section-copy">Show, hide, and reorder the sections on your Reports tab.</div>
+      <div id="report-sections-list"></div>
+    </div>
+
+    <div class="admin-section">
+      <h3>�👁 Show / Hide Habits</h3>
       <div id="admin-habits-list">
         <div class="loading-spinner"><div class="spinner"></div></div>
       </div>
@@ -1603,6 +1633,15 @@ const DEFAULT_HABITS = [
 
 const DEFAULT_HABIT_INDEX = new Map(DEFAULT_HABITS.map((h, i) => [h.id, i]));
 
+const REPORT_SECTIONS = [
+  { id: 'streaks',  label: 'Current Streaks',    emoji: '🔥' },
+  { id: 'heatmap',  label: 'Completion Heatmap',  emoji: '📅' },
+  { id: 'exercise', label: 'Exercise Progress',   emoji: '📈' },
+  { id: 'week',     label: 'This Week',            emoji: '📊' },
+  { id: 'ytd',      label: 'Year-to-Date',         emoji: '🗓' },
+  { id: 'records',  label: 'Personal Records',     emoji: '🏆' },
+];
+
 function sortHabitsForDisplay(list) {
   return [...(list || [])].sort((a, b) => {
     const aDefault = DEFAULT_HABIT_INDEX.has(a.id);
@@ -1635,6 +1674,7 @@ let currentUserProfile = null;
 let adminUsers = [];
 let pendingInvites = [];
 let revokedInvites = [];
+let reportSectionPrefs = [];
 
 function isIsoDate(s) {
   return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
@@ -1735,6 +1775,7 @@ async function startApp() {
     renderToday();
     loadNotifSettings();
     renderSettingsPreferences();
+    loadReportSectionPrefs();
   } catch (e) {
     // Fallback ensures UI still becomes usable if any network call hangs.
     if (!habits.length) habits = DEFAULT_HABITS;
@@ -1763,6 +1804,89 @@ function updateAdminVisibility() {
   const denied = document.getElementById('admin-access-denied');
   if (panel) panel.style.display = isAdmin() ? 'block' : 'none';
   if (denied) denied.style.display = isAdmin() ? 'none' : 'block';
+}
+
+function loadReportSectionPrefs() {
+  try {
+    const raw = localStorage.getItem('dht_report_sections');
+    if (raw) {
+      const saved = JSON.parse(raw);
+      const savedMap = new Map(saved.map(s => [s.id, s]));
+      // Build ordered list: saved order first, then any new sections not yet in saved
+      const ordered = REPORT_SECTIONS.map(s => ({
+        id: s.id,
+        visible: savedMap.get(s.id)?.visible !== false,
+        order: savedMap.has(s.id) ? (savedMap.get(s.id).order ?? 999) : 999,
+      }));
+      ordered.sort((a, b) => a.order - b.order);
+      ordered.forEach((s, i) => { s.order = i; });
+      reportSectionPrefs = ordered;
+    } else {
+      reportSectionPrefs = REPORT_SECTIONS.map((s, i) => ({ id: s.id, visible: true, order: i }));
+    }
+  } catch {
+    reportSectionPrefs = REPORT_SECTIONS.map((s, i) => ({ id: s.id, visible: true, order: i }));
+  }
+}
+
+function saveReportSectionPrefs() {
+  localStorage.setItem('dht_report_sections', JSON.stringify(reportSectionPrefs));
+}
+
+function renderReportSections() {
+  loadReportSectionPrefs();
+  const container = document.getElementById('report-sections-list');
+  if (!container) return;
+  container.innerHTML = reportSectionPrefs.map((pref, i) => {
+    const def = REPORT_SECTIONS.find(s => s.id === pref.id);
+    if (!def) return '';
+    return `
+      <div class="admin-habit-row">
+        <span style="font-size:1.3rem">${def.emoji}</span>
+        <div class="admin-habit-info">
+          <div class="admin-habit-name">${def.label}</div>
+        </div>
+        <div class="reorder-btns">
+          <button class="reorder-btn" onclick="moveReportSection(${i}, -1)" ${i === 0 ? 'disabled' : ''} title="Move up">▲</button>
+          <button class="reorder-btn" onclick="moveReportSection(${i}, 1)" ${i === reportSectionPrefs.length - 1 ? 'disabled' : ''} title="Move down">▼</button>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" ${pref.visible !== false ? 'checked' : ''} onchange="toggleReportSection('${pref.id}', this.checked)">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>`;
+  }).join('');
+}
+
+function toggleReportSection(id, visible) {
+  const pref = reportSectionPrefs.find(p => p.id === id);
+  if (pref) pref.visible = visible;
+  saveReportSectionPrefs();
+  applyReportSectionPrefs();
+}
+
+function moveReportSection(index, direction) {
+  const newIndex = index + direction;
+  if (newIndex < 0 || newIndex >= reportSectionPrefs.length) return;
+  [reportSectionPrefs[index], reportSectionPrefs[newIndex]] = [reportSectionPrefs[newIndex], reportSectionPrefs[index]];
+  reportSectionPrefs.forEach((s, i) => { s.order = i; });
+  saveReportSectionPrefs();
+  renderReportSections();
+  applyReportSectionPrefs();
+}
+
+function applyReportSectionPrefs() {
+  const page = document.getElementById('page-reports');
+  if (!page) return;
+  const exportBtn = page.querySelector('.btn-export');
+  const sorted = [...reportSectionPrefs].sort((a, b) => a.order - b.order);
+  sorted.forEach(pref => {
+    const el = page.querySelector(`[data-section-id="${pref.id}"]`);
+    if (!el) return;
+    el.style.display = pref.visible !== false ? '' : 'none';
+    if (exportBtn) page.insertBefore(el, exportBtn);
+    else page.appendChild(el);
+  });
 }
 
 function renderSettingsPreferences() {
@@ -2150,6 +2274,7 @@ async function loadReports() {
   renderYtdSummary();
   renderRecords();
   renderChart(currentChartMetric);
+  applyReportSectionPrefs();
 }
 
 function renderStreaks() {
@@ -2715,8 +2840,8 @@ function showPage(name, btn) {
   window.scrollTo(0, 0);
   page.scrollTop = 0;
 
-  if (name === 'reports') loadReports();
-  if (name === 'settings') renderAdminHabits();
+  if (name === 'reports') { loadReports(); applyReportSectionPrefs(); }
+  if (name === 'settings') { renderAdminHabits(); renderReportSections(); }
   if (name === 'admin') refreshAdminPanel();
 }
 
