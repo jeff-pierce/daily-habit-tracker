@@ -2992,6 +2992,7 @@ function toggleTheme() {
 function initTheme() {
   const saved = localStorage.getItem('dht_theme') || 'dark';
   applyTheme(saved);
+}
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // EMOJI PICKER
@@ -3066,7 +3067,6 @@ document.addEventListener('click', function(e) {
     if (palette) palette.style.display = 'none';
   }
 });
-}
 
 // Register a Service Worker so the app can work offline and be installable as a PWA.
 if ('serviceWorker' in navigator) {
