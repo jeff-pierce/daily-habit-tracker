@@ -327,7 +327,14 @@
     transition: background 0.2s, border-color 0.2s, color 0.2s;
     flex-shrink: 0;
   }
-  .nav-day-btn:hover { border-color: var(--border2); color: var(--text); background: var(--border); }
+  .nav-day-btn:hover:not(:disabled) { border-color: var(--border2); color: var(--text); background: var(--border); }
+  .nav-day-btn:disabled { opacity: 0.3; cursor: default; }
+
+  .page-title-today {
+    cursor: pointer;
+    transition: color 0.15s;
+  }
+  .page-title-today:hover { color: var(--accent); }
 
   .today-dot {
     display: inline-block;
@@ -1170,12 +1177,12 @@
   <div class="page active" id="page-today">
     <div class="page-header">
       <div>
-        <div class="page-title">Today</div>
+        <div class="page-title" id="today-title" onclick="jumpToToday()">Today</div>
         <div class="page-subtitle" id="today-subtitle"></div>
       </div>
       <div class="header-right">
         <button class="nav-day-btn" id="btn-prev-day" onclick="prevDay()" title="Previous day">&#8249;</button>
-        <button class="nav-day-btn" id="btn-next-day" onclick="nextDay()" title="Next day" style="display:none">&#8250;</button>
+        <button class="nav-day-btn" id="btn-next-day" onclick="nextDay()" title="Next day" disabled>&#8250;</button>
         <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle theme">🌙</button>
       </div>
     </div>
@@ -1884,7 +1891,18 @@ function updateTodayDateHeader() {
   }
 
   const nextBtn = document.getElementById('btn-next-day');
-  if (nextBtn) nextBtn.style.display = isToday ? 'none' : '';
+  if (nextBtn) nextBtn.disabled = isToday;
+
+  const titleEl = document.getElementById('today-title');
+  if (titleEl) {
+    if (isToday) {
+      titleEl.classList.remove('page-title-today');
+      titleEl.title = '';
+    } else {
+      titleEl.classList.add('page-title-today');
+      titleEl.title = 'Jump to today';
+    }
+  }
 }
 
 function prevDay() {
@@ -1898,6 +1916,10 @@ function nextDay() {
   d.setDate(d.getDate() + 1);
   const nextStr = dateToIsoStr(d);
   if (nextStr <= todayStr()) handleDateChange(nextStr);
+}
+
+function jumpToToday() {
+  if (selectedDate !== todayStr()) handleDateChange(todayStr());
 }
 
 async function handleDateChange(newDate) {
