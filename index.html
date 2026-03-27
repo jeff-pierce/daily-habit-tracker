@@ -1243,6 +1243,13 @@
     </div>
 
     <div class="report-section">
+      <h3>🗓 Year-to-Date</h3>
+      <div class="weekly-summary" id="ytd-summary">
+        <div class="loading-spinner"><div class="spinner"></div></div>
+      </div>
+    </div>
+
+    <div class="report-section">
       <h3>🏆 Personal Records</h3>
       <div class="weekly-summary" id="records-list">
         <div class="loading-spinner"><div class="spinner"></div></div>
@@ -1357,6 +1364,14 @@
       <div class="admin-section">
         <h3>📨 Pending Invites</h3>
         <div id="pending-invites-list" class="admin-list">
+          <div class="loading-spinner"><div class="spinner"></div></div>
+        </div>
+      </div>
+
+      <div class="admin-section">
+        <h3>🗂 Revoked Invites</h3>
+        <div class="section-copy">Invites removed from Pending are kept here as an audit trail.</div>
+        <div id="revoked-invites-list" class="admin-list">
           <div class="loading-spinner"><div class="spinner"></div></div>
         </div>
       </div>
@@ -1575,6 +1590,8 @@ const DEFAULT_HABITS = [
   { id: 'mood',       name: 'Mood',          emoji: '😊', type: 'mood',    visible: true },
   { id: 'day_rating', name: 'Day Rating',    emoji: '⭐', type: 'slider',  unit: '/10',    visible: true },
   { id: 'gratitude',  name: 'Grateful For',  emoji: '🙏', type: 'gratitude', count: 3,     visible: true },
+  { id: 'wins',       name: 'Wins',          emoji: '🏆', type: 'text',    visible: true },
+  { id: 'learnings',  name: 'Learnings',     emoji: '📚', type: 'text',    visible: true },
 ];
 
 const DEFAULT_HABIT_INDEX = new Map(DEFAULT_HABITS.map((h, i) => [h.id, i]));
@@ -1610,6 +1627,7 @@ let deferredInstallPrompt = null;
 let currentUserProfile = null;
 let adminUsers = [];
 let pendingInvites = [];
+let revokedInvites = [];
 
 function isIsoDate(s) {
   return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
@@ -2107,6 +2125,7 @@ async function loadReports() {
   renderStreaks();
   renderHeatmap();
   renderWeeklySummary();
+  renderYtdSummary();
   renderRecords();
   renderChart(currentChartMetric);
 }
@@ -2193,6 +2212,45 @@ function renderWeeklySummary() {
   container.innerHTML = summaries.map(s =>
     `<div class="summary-row"><span class="summary-label">${s.label}</span><span class="summary-value">${s.value}</span></div>`
   ).join('') || '<div style="color:var(--text-2);font-size:0.9rem">No data yet — start tracking!</div>';
+}
+
+function renderYtdSummary() {
+  const container = document.getElementById('ytd-summary');
+  const yearStart = new Date();
+  yearStart.setMonth(0, 1);
+  yearStart.setHours(0, 0, 0, 0);
+  const ytdStr = yearStart.toISOString().slice(0,10);
+  const ytdLogs = allLogs.filter(l => l.log_date >= ytdStr);
+
+  const summaries = [];
+
+  const daysLogged = new Set(ytdLogs.map(l => l.log_date)).size;
+  summaries.push({ label: '📅 Days logged (YTD)', value: daysLogged.toLocaleString() });
+
+  const ytdPushups = ytdLogs.reduce((s,l) => s + (l.values?.pushups || 0), 0);
+  if (ytdPushups) summaries.push({ label: '💪 Push-ups (YTD)', value: `${ytdPushups.toLocaleString()} reps` });
+
+  const ytdSquats = ytdLogs.reduce((s,l) => s + (l.values?.squats || 0), 0);
+  if (ytdSquats) summaries.push({ label: '🦵 Squats (YTD)', value: `${ytdSquats.toLocaleString()} reps` });
+
+  const ytdWater = ytdLogs.reduce((s,l) => s + (l.values?.water || 0), 0);
+  if (ytdWater) summaries.push({ label: '💧 Water (YTD)', value: `${ytdWater.toLocaleString()} cups` });
+
+  const ytdMeditation = ytdLogs.reduce((s,l) => s + (l.values?.meditation || 0), 0);
+  if (ytdMeditation) summaries.push({ label: '🧘 Meditation (YTD)', value: `${ytdMeditation.toLocaleString()} mins` });
+
+  const vitaminsDays = ytdLogs.filter(l => l.values?.vitamins).length;
+  if (daysLogged) summaries.push({ label: '💊 Vitamin consistency', value: `${vitaminsDays} / ${daysLogged} logged days` });
+
+  const winsCount = ytdLogs.filter(l => typeof l.values?.wins === 'string' && l.values.wins.trim().length > 0).length;
+  if (winsCount) summaries.push({ label: '🏆 Days with a logged win', value: winsCount.toLocaleString() });
+
+  const learningsCount = ytdLogs.filter(l => typeof l.values?.learnings === 'string' && l.values.learnings.trim().length > 0).length;
+  if (learningsCount) summaries.push({ label: '📚 Days with a logged learning', value: learningsCount.toLocaleString() });
+
+  container.innerHTML = summaries.map(s =>
+    `<div class="summary-row"><span class="summary-label">${s.label}</span><span class="summary-value">${s.value}</span></div>`
+  ).join('') || '<div style="color:var(--text-2);font-size:0.9rem">No YTD data yet — keep logging daily entries.</div>';
 }
 
 function renderRecords() {
@@ -2355,6 +2413,14 @@ async function loadPendingInvites() {
   return pendingInvites;
 }
 
+async function loadRevokedInvites() {
+  if (!isAdmin()) return [];
+  const t = await sb.from('dht_invites');
+  const { data } = await t.eq('status', 'revoked').order('updated_at', { ascending: false }).select();
+  revokedInvites = Array.isArray(data) ? data : [];
+  return revokedInvites;
+}
+
 function renderAdminUsers() {
   const container = document.getElementById('admin-users-list');
   if (!container) return;
@@ -2408,16 +2474,54 @@ function renderPendingInvites() {
       </div>
       <div class="inline-actions">
         <button class="btn-secondary" onclick="sendInvite('${invite.email}', '${invite.role}', true, ${invite.resend_count || 0})">Resend Invite</button>
+        <button class="btn-danger" onclick="deletePendingInvite('${invite.id}', '${invite.email.replace(/'/g, "\\'")}')">Delete</button>
       </div>
     </div>
   `).join('');
 }
 
+function renderRevokedInvites() {
+  const container = document.getElementById('revoked-invites-list');
+  if (!container) return;
+  if (!revokedInvites.length) {
+    container.innerHTML = '<div class="empty-state">No revoked invites.</div>';
+    return;
+  }
+
+  container.innerHTML = revokedInvites.map((invite) => `
+    <div class="invite-card">
+      <div class="invite-top">
+        <div>
+          <div class="invite-email">${invite.email}</div>
+          <div class="invite-meta">Role: ${invite.role} · Revoked ${invite.updated_at ? new Date(invite.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'recently'}</div>
+        </div>
+        <span class="pill">revoked</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function deletePendingInvite(inviteId, inviteEmail) {
+  if (!isAdmin()) return;
+  const ok = window.confirm(`Delete pending invite for ${inviteEmail}?`);
+  if (!ok) return;
+
+  try {
+    const t = await sb.from('dht_invites');
+    await t.eq('id', inviteId).eq('status', 'pending').update({ status: 'revoked' });
+    await refreshAdminPanel();
+    showToast(`Invite removed for ${inviteEmail}`);
+  } catch {
+    showToast('Could not remove invite');
+  }
+}
+
 async function refreshAdminPanel() {
   if (!isAdmin()) return;
-  await Promise.all([loadAdminUsers(), loadPendingInvites()]);
+  await Promise.all([loadAdminUsers(), loadPendingInvites(), loadRevokedInvites()]);
   renderAdminUsers();
   renderPendingInvites();
+  renderRevokedInvites();
 }
 
 async function toggleAdminRole(userId, currentRole) {
