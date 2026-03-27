@@ -1026,6 +1026,43 @@
 
   .btn-logout:hover { background: var(--danger-bg); }
 
+  .logout-confirm {
+    margin-top: 0.55rem;
+    padding: 0.65rem;
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    background: var(--surface2);
+  }
+
+  .logout-confirm-text {
+    font-size: 0.8rem;
+    color: var(--text-2);
+    margin-bottom: 0.55rem;
+  }
+
+  .logout-confirm-row {
+    display: flex;
+    gap: 0.45rem;
+  }
+
+  .logout-confirm-row button {
+    flex: 1;
+    padding: 0.56rem;
+    border-radius: 8px;
+    font-family: 'Sora', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .btn-cancel {
+    background: transparent;
+    border: 1px solid var(--border2);
+    color: var(--text);
+  }
+
+  .btn-cancel:hover { background: var(--border); }
+
   /* TOAST */
   .toast {
     position: fixed;
@@ -1444,7 +1481,14 @@
     <div class="admin-section">
       <h3>👤 Account</h3>
       <div style="font-size:0.85rem;color:var(--text-2);margin-bottom:0.5rem" id="user-email-display"></div>
-      <button class="btn-logout" onclick="handleLogout()">Sign Out</button>
+      <button class="btn-logout" onclick="requestLogout()">Sign Out</button>
+      <div class="logout-confirm" id="logout-confirm" style="display:none">
+        <div class="logout-confirm-text">Are you sure you want to sign out?</div>
+        <div class="logout-confirm-row">
+          <button class="btn-danger" onclick="handleLogout()">Sign Out</button>
+          <button class="btn-cancel" onclick="cancelLogout()">Cancel</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1830,10 +1874,21 @@ async function handleSignup() {
   switchAuthTab('signup');
 }
 
+function requestLogout() {
+  const confirmBox = document.getElementById('logout-confirm');
+  if (confirmBox) confirmBox.style.display = 'block';
+}
+
+function cancelLogout() {
+  const confirmBox = document.getElementById('logout-confirm');
+  if (confirmBox) confirmBox.style.display = 'none';
+}
+
 function handleLogout() {
   sb.signOut();
   document.getElementById('app').style.display = 'none';
   document.getElementById('auth-screen').style.display = 'flex';
+  cancelLogout();
   currentUserProfile = null;
   adminUsers = [];
   pendingInvites = [];
