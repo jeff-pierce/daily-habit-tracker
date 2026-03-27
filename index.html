@@ -761,6 +761,85 @@
 
   .btn-add:hover { opacity: 0.88; }
 
+  /* ── Emoji Picker ──────────────────────────────── */
+  .emoji-picker-wrap { position: relative; }
+  .emoji-picker-btn {
+    width: 100%;
+    padding: 0.68rem 0.85rem;
+    border: 1px solid var(--border2);
+    border-radius: 9px;
+    font-family: 'Sora', sans-serif;
+    font-size: 0.88rem;
+    background: var(--surface2);
+    color: var(--text);
+    outline: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    text-align: left;
+  }
+  .emoji-picker-btn:hover, .emoji-picker-btn:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-bg);
+  }
+  .emoji-preview-lg { font-size: 1.35rem; line-height: 1; }
+  .emoji-picker-hint { color: var(--text-2); font-size: 0.85rem; }
+  .emoji-palette {
+    margin-top: 0.4rem;
+    border: 1px solid var(--border2);
+    border-radius: 9px;
+    background: var(--surface2);
+    padding: 0.75rem;
+    max-height: 280px;
+    overflow-y: auto;
+  }
+  .emoji-cat-label {
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    color: var(--text-2);
+    text-transform: uppercase;
+    margin: 0.6rem 0 0.25rem;
+  }
+  .emoji-cat-label:first-child { margin-top: 0; }
+  .emoji-grid { display: grid; grid-template-columns: repeat(9, 1fr); gap: 2px; }
+  .emoji-opt {
+    background: none;
+    border: none;
+    border-radius: 6px;
+    font-size: 1.3rem;
+    cursor: pointer;
+    padding: 0.18rem;
+    line-height: 1;
+    text-align: center;
+    transition: background 0.1s;
+  }
+  .emoji-opt:hover { background: var(--border); }
+  .emoji-custom-row {
+    margin-top: 0.65rem;
+    padding-top: 0.6rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+  }
+  .emoji-custom-hint { font-size: 0.78rem; color: var(--text-2); white-space: nowrap; }
+  .emoji-custom-input {
+    width: 4.2rem;
+    padding: 0.32rem 0.5rem;
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 1.1rem;
+    text-align: center;
+    outline: none;
+    font-family: inherit;
+  }
+  .emoji-custom-input:focus { border-color: var(--accent); }
+
   .section-copy {
     font-size: 0.78rem;
     color: var(--text-2);
@@ -1342,7 +1421,14 @@
       <h3>➕ Add New Habit</h3>
       <div class="admin-form">
         <input type="text" id="new-habit-name" placeholder="Habit name (e.g. Cold shower)">
-        <input type="text" id="new-habit-emoji" placeholder="Emoji (e.g. 🚿)">
+        <div class="emoji-picker-wrap" id="emoji-picker-wrap">
+          <button type="button" class="emoji-picker-btn" id="emoji-picker-btn" onclick="toggleEmojiPicker()">
+            <span class="emoji-preview-lg" id="emoji-preview">✦</span>
+            <span class="emoji-picker-hint" id="emoji-picker-hint">Choose emoji</span>
+          </button>
+          <div class="emoji-palette" id="emoji-palette" style="display:none"></div>
+          <input type="hidden" id="new-habit-emoji" value="">
+        </div>
         <select id="new-habit-type">
           <option value="counter">Counter (number)</option>
           <option value="toggle">Yes / No toggle</option>
@@ -2761,7 +2847,7 @@ async function addNewHabit() {
   } catch {}
 
   document.getElementById('new-habit-name').value = '';
-  document.getElementById('new-habit-emoji').value = '';
+  resetEmojiPicker();
   document.getElementById('new-habit-unit').value = '';
 
   renderAdminHabits();
@@ -2906,6 +2992,80 @@ function toggleTheme() {
 function initTheme() {
   const saved = localStorage.getItem('dht_theme') || 'dark';
   applyTheme(saved);
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// EMOJI PICKER
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const EMOJI_PALETTE_DATA = [
+  { cat: 'Fitness & Sport', emojis: ['💪','🏃','🚴','🏋️','🤸','🏊','🥊','🏆','⚽','🏀','🎾','🧘','🎯','🏅','🦵'] },
+  { cat: 'Food & Drink',    emojis: ['💧','🥤','☕','🍵','🥗','🥑','🍎','🥦','🍇','🫐','🍳','🥚'] },
+  { cat: 'Mind & Learning', emojis: ['🧠','📚','✍️','📝','💡','🎵','🎨','🌟','✨','💭','🔬','📖'] },
+  { cat: 'Health & Body',   emojis: ['😴','💊','🌿','🛁','🚿','🪥','❤️','💤','🧬','😌'] },
+  { cat: 'Routine & Work',  emojis: ['📋','📅','⏰','💼','💻','🗒️','✅','🔔','💰','📈','🗓️','📊'] },
+  { cat: 'Lifestyle',       emojis: ['🌍','🌱','🌸','🦋','☀️','🌙','⭐','🔥','🎉','🙏','😊'] },
+];
+
+let _emojiPaletteBuilt = false;
+
+function buildEmojiPalette() {
+  if (_emojiPaletteBuilt) return;
+  const palette = document.getElementById('emoji-palette');
+  if (!palette) return;
+  palette.innerHTML = EMOJI_PALETTE_DATA.map(({ cat, emojis }) =>
+    `<div class="emoji-cat-label">${cat}</div>` +
+    `<div class="emoji-grid">` +
+    emojis.map(e => `<button type="button" class="emoji-opt" data-emoji="${e}" onclick="selectEmoji(this.dataset.emoji)">${e}</button>`).join('') +
+    `</div>`
+  ).join('') +
+  `<div class="emoji-custom-row">` +
+  `<span class="emoji-custom-hint">Or type your own:</span>` +
+  `<input type="text" class="emoji-custom-input" id="emoji-custom-input" placeholder="🎯" oninput="selectEmojiCustom(this.value)">` +
+  `</div>`;
+  _emojiPaletteBuilt = true;
+}
+
+function toggleEmojiPicker() {
+  buildEmojiPalette();
+  const palette = document.getElementById('emoji-palette');
+  if (!palette) return;
+  palette.style.display = palette.style.display === 'none' ? 'block' : 'none';
+}
+
+function selectEmoji(emoji) {
+  if (!emoji || !emoji.trim()) return;
+  const val = [...emoji.trim()].slice(0, 2).join('');
+  document.getElementById('new-habit-emoji').value = val;
+  document.getElementById('emoji-preview').textContent = val;
+  document.getElementById('emoji-picker-hint').textContent = 'Change emoji';
+  document.getElementById('emoji-palette').style.display = 'none';
+}
+
+function selectEmojiCustom(raw) {
+  const chars = [...raw.trim()];
+  if (!chars.length) return;
+  const val = chars.slice(0, 2).join('');
+  document.getElementById('new-habit-emoji').value = val;
+  document.getElementById('emoji-preview').textContent = val;
+  document.getElementById('emoji-picker-hint').textContent = 'Change emoji';
+}
+
+function resetEmojiPicker() {
+  document.getElementById('new-habit-emoji').value = '';
+  document.getElementById('emoji-preview').textContent = '✦';
+  document.getElementById('emoji-picker-hint').textContent = 'Choose emoji';
+  const ci = document.getElementById('emoji-custom-input');
+  if (ci) ci.value = '';
+  const palette = document.getElementById('emoji-palette');
+  if (palette) palette.style.display = 'none';
+}
+
+document.addEventListener('click', function(e) {
+  const wrap = document.getElementById('emoji-picker-wrap');
+  if (wrap && !wrap.contains(e.target)) {
+    const palette = document.getElementById('emoji-palette');
+    if (palette) palette.style.display = 'none';
+  }
+});
 }
 
 // Register a Service Worker so the app can work offline and be installable as a PWA.
