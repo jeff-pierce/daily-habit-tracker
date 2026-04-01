@@ -1753,7 +1753,7 @@ const DEFAULT_HABITS = [
   { id: 'water',      name: 'Water',         emoji: '💧', type: 'counter', unit: 'cups',   step: 1,  visible: true },
   { id: 'vitamins',   name: 'Vitamins',      emoji: '💊', type: 'toggle',  visible: true },
   { id: 'meditation', name: 'Meditation',    emoji: '🧘', type: 'counter', unit: 'mins',   step: 1,  visible: true },
-  { id: 'sleep',      name: 'Sleep',         emoji: '🌙', type: 'counter', unit: 'hrs',    step: 0.5, visible: true },
+  { id: 'sleep',      name: 'Sleep',         emoji: '🌙', type: 'counter', unit: 'hrs',    step: 0.5, default_value: 6.5, visible: true },
   { id: 'mood',       name: 'Mood',          emoji: '😊', type: 'mood',    visible: true },
   { id: 'day_rating', name: 'Day Rating',    emoji: '⭐', type: 'slider',  unit: '/10',    visible: true },
   { id: 'gratitude',  name: 'Grateful For',  emoji: '🙏', type: 'gratitude', count: 3,     visible: true },
@@ -1790,6 +1790,16 @@ function sortHabitsForDisplay(list) {
     return (a.name || '').localeCompare(b.name || '');
   });
 }
+
+  .pill.disabled {
+    background: rgba(255, 80, 80, 0.12);
+    color: #ff6b6b;
+    border-color: transparent;
+  }
+
+  .admin-user-card.user-disabled {
+    opacity: 0.65;
+  }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // STATE
@@ -2267,7 +2277,7 @@ function renderHabitCard(h) {
 function renderInput(h, v) {
   switch(h.type) {
     case 'counter': {
-      const val = v || 0;
+      const val = v !== undefined && v !== null ? v : (h.default_value ?? 0);
       const step = h.step || 1;
       return `<div class="counter-row">
         <button class="counter-btn" onclick="adjustCounter('${h.id}', ${-step})">−</button>
@@ -2327,7 +2337,7 @@ function renderInput(h, v) {
 function adjustCounter(id, delta) {
   const h = habits.find(h => h.id === id);
   const step = h?.step || 1;
-  const cur = todayValues[id] || 0;
+  const cur = todayValues[id] !== undefined && todayValues[id] !== null ? todayValues[id] : (h?.default_value ?? 0);
   const newVal = Math.max(0, Math.round((cur + delta) * 10) / 10);
   setValue(id, newVal);
   // Update display
@@ -2743,39 +2753,53 @@ function renderAdminUsers() {
   `).join('');
 }
 
-function renderPendingInvites() {
-  const container = document.getElementById('pending-invites-list');
+function renderAdminUsers() {
+  const container = document.getElementById('admin-users-list');
   if (!container) return;
-  if (!pendingInvites.length) {
-    container.innerHTML = '<div class="empty-state">No pending invites.</div>';
+  if (!adminUsers.length) {
+    container.innerHTML = '<div class="empty-state">No users found yet.</div>';
     return;
   }
 
-  container.innerHTML = pendingInvites.map((invite) => `
-    <div class="invite-card">
-      <div class="invite-top">
+  container.innerHTML = adminUsers.map((user) => {
+    const isSelf = user.user_id === sb.userId;
+    const safeEmail = user.email.replace(/'/g, "\\'");
+    const lastLogin = user.last_sign_in_at
+      ? new Date(user.last_sign_in_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      : 'Never';
+    return `
+    <div class="admin-user-card${user.disabled ? ' user-disabled' : ''}">
+      <div class="admin-user-top">
         <div>
-          <div class="invite-email">${invite.email}</div>
-          <div class="invite-meta">Role: ${invite.role} · Sent ${invite.last_sent_at ? new Date(invite.last_sent_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'not yet'}</div>
+          <div class="admin-user-email">${user.email}</div>
+          <div class="admin-user-meta">Joined ${new Date(user.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · Last login: ${lastLogin}</div>
         </div>
-        <span class="pill pending">pending</span>
+        <div style="display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+          ${user.disabled ? '<span class="pill disabled">disabled</span>' : ''}
+          <span class="pill ${user.role === 'admin' ? 'admin' : ''}">${user.role}</span>
+        </div>
+      </div>
+      <div class="metric-grid">
+        <div class="metric-card">
+          <div class="metric-label">Active Days</div>
+          <div class="metric-value">${user.active_days_last_30}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Current Streak</div>
+          <div class="metric-value">${user.streak_days}</div>
+        </div>
       </div>
       <div class="inline-actions">
-        <button class="btn-secondary" onclick="sendInvite('${invite.email}', '${invite.role}', true, ${invite.resend_count || 0})">Resend Invite</button>
-        <button class="btn-danger" onclick="deletePendingInvite('${invite.id}', '${invite.email.replace(/'/g, "\\'")}')">Delete</button>
+        <button class="btn-secondary" onclick="toggleAdminRole('${user.user_id}', '${user.role}')"${isSelf ? ' disabled title="Cannot change your own role"' : ''}>${user.role === 'admin' ? 'Make User' : 'Make Admin'}</button>
+        ${user.disabled
+          ? `<button class="btn-secondary" onclick="enableUser('${user.user_id}', '${safeEmail}')">Enable</button>`
+          : `<button class="btn-secondary" onclick="disableUser('${user.user_id}', '${safeEmail}')"${isSelf ? ' disabled title="Cannot disable yourself"' : ''}>Disable</button>`
+        }
+        <button class="btn-danger" onclick="deleteUser('${user.user_id}', '${safeEmail}')"${isSelf ? ' disabled title="Cannot delete yourself"' : ''}>Delete</button>
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
-
-function renderRevokedInvites() {
-  const container = document.getElementById('revoked-invites-list');
-  if (!container) return;
-  if (!revokedInvites.length) {
-    container.innerHTML = '<div class="empty-state">No revoked invites.</div>';
-    return;
-  }
-
   container.innerHTML = revokedInvites.map((invite) => `
     <div class="invite-card">
       <div class="invite-top">
@@ -2824,6 +2848,67 @@ async function toggleAdminRole(userId, currentRole) {
     showToast(`Role updated to ${nextRole}`);
   } catch {
     showToast('Could not update role');
+  async function disableUser(userId, email) {
+    if (!isAdmin()) return;
+    if (userId === sb.userId) { showToast('You cannot disable your own account'); return; }
+    const ok = window.confirm(`Disable ${email}?\n\nThey will be signed out and unable to log in until re-enabled.`);
+    if (!ok) return;
+    try {
+      const response = await fetch('/.netlify/functions/manage-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sb.token}` },
+        body: JSON.stringify({ action: 'disable', targetUserId: userId })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Action failed');
+      await refreshAdminPanel();
+      showToast(`${email} has been disabled`);
+    } catch (error) {
+      showToast(error.message || 'Could not disable user');
+    }
+  }
+
+  async function enableUser(userId, email) {
+    if (!isAdmin()) return;
+    try {
+      const response = await fetch('/.netlify/functions/manage-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sb.token}` },
+        body: JSON.stringify({ action: 'enable', targetUserId: userId })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Action failed');
+      await refreshAdminPanel();
+      showToast(`${email} has been re-enabled`);
+    } catch (error) {
+      showToast(error.message || 'Could not enable user');
+    }
+  }
+
+  async function deleteUser(userId, email) {
+    if (!isAdmin()) return;
+    if (userId === sb.userId) { showToast('You cannot delete your own account'); return; }
+    const typed = window.prompt(`This will permanently delete ${email} and ALL their data (logs, habits, everything).\n\nType their email address to confirm:`);
+    if (typed === null) return;
+    if (typed.trim().toLowerCase() !== email.toLowerCase()) {
+      showToast('Email did not match — deletion cancelled');
+      return;
+    }
+    try {
+      const response = await fetch('/.netlify/functions/manage-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sb.token}` },
+        body: JSON.stringify({ action: 'delete', targetUserId: userId })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Deletion failed');
+      await refreshAdminPanel();
+      showToast(`${email} deleted`);
+    } catch (error) {
+      showToast(error.message || 'Could not delete user');
+    }
+  }
+
   }
 }
 

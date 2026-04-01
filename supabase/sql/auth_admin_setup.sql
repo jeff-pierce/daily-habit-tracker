@@ -7,6 +7,8 @@ create table if not exists public.dht_profiles (
   user_id uuid primary key references auth.users(id) on delete cascade,
   email text not null unique,
   role text not null default 'user' check (role in ('user', 'admin')),
+  disabled boolean not null default false,
+  last_sign_in_at timestamptz,
   weekly_summary_enabled boolean not null default true,
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
@@ -271,18 +273,43 @@ grant select on public.dht_admin_user_metrics to authenticated;
 drop policy if exists "logs_select_own" on public.dht_logs;
 create policy "logs_select_own"
 on public.dht_logs
-for select
-using (auth.uid() = user_id);
+select
+  p.user_id,
+  p.email,
+  p.role,
+  p.disabled,
+  p.last_sign_in_at,
+  p.weekly_summary_enabled,
+  coalesce(a.active_days_last_30, 0) as active_days_last_30,
+  coalesce(cs.streak_days, 0) as streak_days,
+  p.created_at,
+  p.updated_at
+from public.dht_profiles p
+left join active_days a on a.user_id = p.user_id
+left join current_streak cs on cs.user_id = p.user_id;
 
-drop policy if exists "logs_insert_own" on public.dht_logs;
-create policy "logs_insert_own"
-on public.dht_logs
-for insert
-with check (auth.uid() = user_id);
+-- Trigger: keep last_sign_in_at in dht_profiles in sync when a user signs in.
+create or replace function public.dht_handle_user_login()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.last_sign_in_at is distinct from old.last_sign_in_at then
+    update public.dht_profiles
+    set last_sign_in_at = new.last_sign_in_at,
+        updated_at = timezone('utc', now())
+    where user_id = new.id;
+  end if;
+  return new;
+end;
+$$;
 
-drop policy if exists "logs_update_own" on public.dht_logs;
-create policy "logs_update_own"
-on public.dht_logs
+drop trigger if exists dht_on_auth_user_login on auth.users;
+create trigger dht_on_auth_user_login
+  after update on auth.users
+  for each row execute procedure public.dht_handle_user_login();
 for update
 using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
