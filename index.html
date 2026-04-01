@@ -281,9 +281,16 @@
 
   .header-right {
     display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.28rem;
+    flex-shrink: 0;
+  }
+
+  .header-controls {
+    display: flex;
     align-items: center;
     gap: 0.5rem;
-    flex-shrink: 0;
   }
 
   .date-badge {
@@ -544,45 +551,25 @@
     text-transform: uppercase;
   }
 
-  /* Save bar */
-  .save-bar {
-    position: sticky;
-    bottom: 90px;
-    padding: 0 1rem;
-    max-width: 600px;
-    margin: 0.9rem auto 0;
-    display: flex;
-    justify-content: flex-end;
-  }
-
   .save-success {
     text-align: right;
     color: var(--text-2);
-    font-size: 0.83rem;
-    font-weight: 600;
-    padding: 0.35rem 0.6rem;
-    border-radius: 999px;
-    border: 1px solid var(--border);
-    background: var(--surface);
-    min-width: 150px;
+    font-size: 0.68rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    line-height: 1.1;
   }
 
   .save-success.saving {
     color: var(--accent2);
-    border-color: rgba(123,110,246,0.4);
-    background: var(--accent-bg);
   }
 
   .save-success.error {
     color: var(--danger);
-    border-color: rgba(248,113,113,0.4);
-    background: var(--danger-bg);
   }
 
   .save-success.saved {
     color: var(--success);
-    border-color: rgba(74,222,128,0.35);
-    background: var(--success-bg);
   }
 
   /* ── REPORTS PAGE ── */
@@ -1190,9 +1177,8 @@
       font-size: 0.86rem;
     }
 
-    .header-right {
-      gap: 0.4rem;
-    }
+    .header-right { gap: 0.2rem; }
+    .header-controls { gap: 0.4rem; }
 
     .habit-pair-grid {
       gap: 0.5rem;
@@ -1320,9 +1306,12 @@
         <div class="page-subtitle" id="today-subtitle"></div>
       </div>
       <div class="header-right">
-        <button class="nav-day-btn" id="btn-prev-day" onclick="prevDay()" title="Previous day">&#8249;</button>
-        <button class="nav-day-btn" id="btn-next-day" onclick="nextDay()" title="Next day" disabled>&#8250;</button>
-        <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle theme">🌙</button>
+        <div class="header-controls">
+          <button class="nav-day-btn" id="btn-prev-day" onclick="prevDay()" title="Previous day">&#8249;</button>
+          <button class="nav-day-btn" id="btn-next-day" onclick="nextDay()" title="Next day" disabled>&#8250;</button>
+          <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle theme">🌙</button>
+        </div>
+        <div class="save-success saved" id="save-success">All changes saved</div>
       </div>
     </div>
 
@@ -1335,9 +1324,6 @@
       <div class="loading-spinner"><div class="spinner"></div>Loading...</div>
     </div>
 
-    <div class="save-bar">
-      <div class="save-success saved" id="save-success">All changes saved</div>
-    </div>
   </div>
 
   <!-- REPORTS PAGE -->
