@@ -2,10 +2,15 @@
   "name": "Daily Habit Tracker",
   "short_name": "Daily",
   "description": "Track your daily habits and build consistency over time",
-  "id": "./",
-  "start_url": "./",
-  "scope": "./",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "browser"],
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "handle_links": "preferred",
   "background_color": "#0A0A0F",
   "theme_color": "#0A0A0F",
   "orientation": "portrait",
