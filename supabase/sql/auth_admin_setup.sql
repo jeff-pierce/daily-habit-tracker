@@ -277,13 +277,13 @@ select
   p.user_id,
   p.email,
   p.role,
-  p.disabled,
-  p.last_sign_in_at,
   p.weekly_summary_enabled,
   coalesce(a.active_days_last_30, 0) as active_days_last_30,
   coalesce(cs.streak_days, 0) as streak_days,
   p.created_at,
-  p.updated_at
+  p.updated_at,
+  p.disabled,
+  p.last_sign_in_at
 from public.dht_profiles p
 left join active_days a on a.user_id = p.user_id
 left join current_streak cs on cs.user_id = p.user_id;
