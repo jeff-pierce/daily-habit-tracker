@@ -1867,16 +1867,25 @@ function switchAuthTab(tab) {
 
 async function handleLogin() {
   const email = document.getElementById('login-email').value.trim();
+  const btn = document.querySelector('#login-form .btn-primary');
   if (!email) {
     document.getElementById('auth-error').textContent = 'Enter your email address.';
+    document.getElementById('auth-error').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     return;
   }
+  const originalText = btn ? btn.textContent : null;
+  if (btn) { btn.textContent = 'Sending…'; btn.disabled = true; }
+  document.getElementById('auth-error').textContent = '';
+  document.getElementById('auth-success').textContent = '';
   try {
     await sb.requestMagicLink(email);
-    document.getElementById('auth-error').textContent = '';
-    document.getElementById('auth-success').textContent = 'Check your email for a secure sign-in link.';
+    document.getElementById('auth-success').textContent = 'Check your email for a sign-in link.';
+    if (typeof showToast === 'function') showToast('Sign-in link sent — check your email');
   } catch(e) {
     document.getElementById('auth-error').textContent = e.message;
+    document.getElementById('auth-error').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  } finally {
+    if (btn) { btn.textContent = originalText; btn.disabled = false; }
   }
 }
 
