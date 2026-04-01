@@ -240,7 +240,8 @@ async function generateClaudeSummary({ anthropicKey, model, weekStart, weekEnd, 
 
   const body = await response.json();
   if (!response.ok) {
-    throw new Error(body?.error?.message || `Claude API failed (${response.status})`);
+    const errorDetail = body?.error?.message || body?.error?.type || body?.message || 'Unknown Claude error';
+    throw new Error(`Claude API failed (${response.status}): ${errorDetail}`);
   }
 
   const text = (body?.content || [])
@@ -262,14 +263,18 @@ async function generateSummaryWithRetry(args) {
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      return await generateClaudeSummary(args);
+      const summaryText = await generateClaudeSummary(args);
+      return {
+        summaryText,
+        attempts: attempt
+      };
     } catch (error) {
       lastError = error;
       if (attempt === maxAttempts) break;
     }
   }
 
-  throw lastError;
+  throw new Error(`Claude failed after ${maxAttempts} attempts: ${lastError?.message || 'Unknown error'}`);
 }
 
 function buildEmailHtml({ weekStart, weekEnd, metricsLines, summaryText }) {
@@ -376,7 +381,13 @@ exports.handler = async (event) => {
           job_type: 'weekly_summary',
           job_status: 'processing',
           scheduled_for: new Date().toISOString(),
-          payload: { week_start: weekStart, week_end: weekEnd }
+          payload: {
+            week_start: weekStart,
+            week_end: weekEnd,
+            summary_source: 'pending',
+            claude_attempts: 0,
+            claude_error: null
+          }
         });
         jobId = Array.isArray(jobRows) ? jobRows[0]?.id : null;
 
@@ -392,8 +403,11 @@ exports.handler = async (event) => {
         const learnings = collectTextEntries(logs, 'learnings');
 
         let summaryText;
+        let summarySource = 'claude';
+        let claudeAttempts = 0;
+        let claudeError = null;
         try {
-          summaryText = await generateSummaryWithRetry({
+          const generated = await generateSummaryWithRetry({
             anthropicKey,
             model: claudeModel,
             weekStart,
@@ -402,7 +416,11 @@ exports.handler = async (event) => {
             wins,
             learnings
           });
-        } catch {
+          summaryText = generated.summaryText;
+          claudeAttempts = generated.attempts;
+        } catch (error) {
+          summarySource = 'fallback';
+          claudeError = (error?.message || 'Claude summary failed').slice(0, 500);
           summaryText = buildFallbackSummary(metrics, wins, learnings);
         }
 
@@ -422,7 +440,18 @@ exports.handler = async (event) => {
             supabaseUrl,
             serviceRoleKey,
             `dht_email_jobs?id=eq.${encodeURIComponent(jobId)}`,
-            { job_status: 'sent', sent_at: new Date().toISOString(), error_message: null }
+            {
+              job_status: 'sent',
+              sent_at: new Date().toISOString(),
+              error_message: null,
+              payload: {
+                week_start: weekStart,
+                week_end: weekEnd,
+                summary_source: summarySource,
+                claude_attempts: claudeAttempts,
+                claude_error: claudeError
+              }
+            }
           );
         }
 
