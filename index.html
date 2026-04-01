@@ -551,34 +551,38 @@
     padding: 0 1rem;
     max-width: 600px;
     margin: 0.9rem auto 0;
+    display: flex;
+    justify-content: flex-end;
   }
-
-  .btn-save {
-    width: 100%;
-    padding: 0.9rem;
-    background: var(--accent);
-    color: white;
-    border: none;
-    border-radius: 12px;
-    font-family: 'Sora', sans-serif;
-    font-size: 0.93rem;
-    font-weight: 600;
-    cursor: pointer;
-    box-shadow: 0 4px 20px rgba(123,110,246,0.4);
-    transition: transform 0.15s, opacity 0.15s;
-    user-select: none;
-  }
-
-  .btn-save:hover { opacity: 0.9; }
-  .btn-save:active { transform: scale(0.98); }
 
   .save-success {
-    text-align: center;
-    color: var(--success);
+    text-align: right;
+    color: var(--text-2);
     font-size: 0.83rem;
     font-weight: 600;
-    padding: 0.5rem;
-    display: none;
+    padding: 0.35rem 0.6rem;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    min-width: 150px;
+  }
+
+  .save-success.saving {
+    color: var(--accent2);
+    border-color: rgba(123,110,246,0.4);
+    background: var(--accent-bg);
+  }
+
+  .save-success.error {
+    color: var(--danger);
+    border-color: rgba(248,113,113,0.4);
+    background: var(--danger-bg);
+  }
+
+  .save-success.saved {
+    color: var(--success);
+    border-color: rgba(74,222,128,0.35);
+    background: var(--success-bg);
   }
 
   /* ── REPORTS PAGE ── */
@@ -1171,11 +1175,6 @@
       font-size: 0.68rem;
     }
 
-    .btn-save {
-      font-size: 1.02rem;
-      padding: 0.95rem;
-    }
-
     .btn-danger {
       font-size: 0.82rem;
       padding: 0.35rem 0.58rem;
@@ -1337,8 +1336,7 @@
     </div>
 
     <div class="save-bar">
-      <button class="btn-save" onclick="saveToday()">💾 Save Entry</button>
-      <div class="save-success" id="save-success">💾 Saved!</div>
+      <div class="save-success saved" id="save-success">All changes saved</div>
     </div>
   </div>
 
@@ -1805,6 +1803,12 @@ let adminUsers = [];
 let pendingInvites = [];
 let revokedInvites = [];
 let reportSectionPrefs = [];
+const AUTOSAVE_DEBOUNCE_MS = 1200;
+let autosaveTimer = null;
+let autosaveInFlight = false;
+let autosaveQueued = false;
+let hasUnsavedChanges = false;
+let lastSavedSnapshot = '';
 
 function isIsoDate(s) {
   return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
@@ -1893,7 +1897,8 @@ function cancelLogout() {
   if (confirmBox) confirmBox.style.display = 'none';
 }
 
-function handleLogout() {
+async function handleLogout() {
+  await flushAutosave();
   sb.signOut();
   document.getElementById('app').style.display = 'none';
   document.getElementById('auth-screen').style.display = 'flex';
@@ -2198,11 +2203,12 @@ function jumpToToday() {
 
 async function handleDateChange(newDate) {
   if (!newDate || !isIsoDate(newDate) || newDate === selectedDate) return;
+  await flushAutosave();
   selectedDate = newDate;
   updateTodayDateHeader();
   await loadSelectedLog();
   renderToday();
-  document.getElementById('save-success').style.display = 'none';
+  setAutosaveStatus('All changes saved', 'saved');
   const selected = parseIsoDate(selectedDate);
   if (selected) {
     showToast(`Loaded ${selected.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`);
@@ -2216,6 +2222,9 @@ async function loadSelectedLog() {
     const { data } = await t.eq('user_id', sb.userId).eq('log_date', selectedDate).select();
     if (data && data.length > 0) todayValues = data[0].values || {};
   } catch { todayValues = {}; }
+  hasUnsavedChanges = false;
+  lastSavedSnapshot = getCurrentLogSnapshot();
+  clearAutosaveTimer();
 }
 
 async function loadAllLogs() {
@@ -2361,6 +2370,7 @@ function setValue(id, val) {
     }
   }
   updateCompletionBar();
+  scheduleAutosave();
 }
 
 function selectMood(id, val, el) {
@@ -2369,12 +2379,48 @@ function selectMood(id, val, el) {
   const card = document.getElementById(`card-${id}`);
   if (card) card.classList.add('completed');
   updateCompletionBar();
+  scheduleAutosave();
 }
 
 function setGratitude(id, idx, val) {
   if (!todayValues[id]) todayValues[id] = ['','',''];
   todayValues[id][idx] = val;
   updateCompletionBar();
+  scheduleAutosave();
+}
+
+function clearAutosaveTimer() {
+  if (!autosaveTimer) return;
+  clearTimeout(autosaveTimer);
+  autosaveTimer = null;
+}
+
+function stableStringify(value) {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+  const keys = Object.keys(value).sort();
+  return `{${keys.map((k) => `${JSON.stringify(k)}:${stableStringify(value[k])}`).join(',')}}`;
+}
+
+function getCurrentLogSnapshot() {
+  return stableStringify({ log_date: selectedDate, values: todayValues || {} });
+}
+
+function setAutosaveStatus(text, status) {
+  const el = document.getElementById('save-success');
+  if (!el) return;
+  el.textContent = text;
+  el.classList.remove('saving', 'error', 'saved');
+  if (status) el.classList.add(status);
+}
+
+function scheduleAutosave() {
+  hasUnsavedChanges = true;
+  setAutosaveStatus('Saving soon...', 'saving');
+  clearAutosaveTimer();
+  autosaveTimer = setTimeout(() => {
+    saveToday({ showToastOnSuccess: false, showToastOnError: false });
+  }, AUTOSAVE_DEBOUNCE_MS);
 }
 
 function checkComplete(h, v) {
@@ -2396,7 +2442,21 @@ function updateCompletionBar() {
   document.getElementById('completion-label').textContent = `${done} of ${visible.length} habits logged`;
 }
 
-async function saveToday() {
+async function saveToday({ showToastOnSuccess = false, showToastOnError = true } = {}) {
+  const nextSnapshot = getCurrentLogSnapshot();
+  if (!hasUnsavedChanges && nextSnapshot === lastSavedSnapshot) {
+    setAutosaveStatus('All changes saved', 'saved');
+    return;
+  }
+
+  if (autosaveInFlight) {
+    autosaveQueued = true;
+    return;
+  }
+
+  clearAutosaveTimer();
+  autosaveInFlight = true;
+  setAutosaveStatus('Saving...', 'saving');
   try {
     const t = await sb.from('dht_logs');
     await t.upsert({
@@ -2405,12 +2465,31 @@ async function saveToday() {
       values: todayValues,
       updated_at: new Date().toISOString()
     }, { onConflict: 'user_id,log_date' });
-    showToast('Saved! 🌿');
-    document.getElementById('save-success').style.display = 'block';
-    setTimeout(() => document.getElementById('save-success').style.display = 'none', 2500);
+    hasUnsavedChanges = false;
+    lastSavedSnapshot = nextSnapshot;
+    setAutosaveStatus('All changes saved', 'saved');
+    if (showToastOnSuccess) showToast('Saved! 🌿');
   } catch(e) {
-    showToast('Save failed. Check connection.');
+    setAutosaveStatus('Save failed, retrying...', 'error');
+    if (showToastOnError) showToast('Save failed. Check connection.');
+    hasUnsavedChanges = true;
+    clearAutosaveTimer();
+    autosaveTimer = setTimeout(() => {
+      saveToday({ showToastOnSuccess: false, showToastOnError: false });
+    }, 4000);
+  } finally {
+    autosaveInFlight = false;
+    if (autosaveQueued) {
+      autosaveQueued = false;
+      scheduleAutosave();
+    }
   }
+}
+
+async function flushAutosave() {
+  clearAutosaveTimer();
+  if (!hasUnsavedChanges) return;
+  await saveToday({ showToastOnSuccess: false, showToastOnError: false });
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -3204,6 +3283,18 @@ document.addEventListener('click', function(e) {
   if (wrap && !wrap.contains(e.target)) {
     const palette = document.getElementById('emoji-palette');
     if (palette) palette.style.display = 'none';
+  }
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden' && hasUnsavedChanges) {
+    saveToday({ showToastOnSuccess: false, showToastOnError: false });
+  }
+});
+
+window.addEventListener('pagehide', () => {
+  if (hasUnsavedChanges) {
+    saveToday({ showToastOnSuccess: false, showToastOnError: false });
   }
 });
 
