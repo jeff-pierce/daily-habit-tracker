@@ -1758,7 +1758,7 @@ const DEFAULT_HABITS = [
   { id: 'water',      name: 'Water',         emoji: '💧', type: 'counter', unit: 'cups',   step: 1,  visible: true },
   { id: 'vitamins',   name: 'Vitamins',      emoji: '💊', type: 'toggle',  visible: true },
   { id: 'meditation', name: 'Meditation',    emoji: '🧘', type: 'counter', unit: 'mins',   step: 1,  visible: true },
-  { id: 'sleep',      name: 'Sleep',         emoji: '🌙', type: 'counter', unit: 'hrs',    step: 0.5, default_value: 6.5, visible: true },
+  { id: 'sleep',      name: 'Sleep',         emoji: '🌙', type: 'counter', unit: 'hrs',    step: 0.5, visible: true },
   { id: 'mood',       name: 'Mood',          emoji: '😊', type: 'mood',    visible: true },
   { id: 'day_rating', name: 'Day Rating',    emoji: '⭐', type: 'slider',  unit: '/10',    visible: true },
   { id: 'gratitude',  name: 'Grateful For',  emoji: '🙏', type: 'gratitude', count: 3,     visible: true },
@@ -2384,9 +2384,17 @@ function renderInput(h, v) {
 
 function adjustCounter(id, delta) {
   const h = habits.find(h => h.id === id);
-  const step = h?.step || 1;
-  const cur = todayValues[id] !== undefined && todayValues[id] !== null ? todayValues[id] : (h?.default_value ?? 0);
-  const newVal = Math.max(0, Math.round((cur + delta) * 10) / 10);
+  const hasValue = todayValues[id] !== undefined && todayValues[id] !== null;
+  let newVal;
+
+  if (!hasValue && (id === 'sleep' || id === 'meditation')) {
+    if (id === 'sleep') newVal = delta > 0 ? 7 : 6;
+    if (id === 'meditation') newVal = delta > 0 ? 5 : 4;
+  } else {
+    const cur = hasValue ? todayValues[id] : (h?.default_value ?? 0);
+    newVal = Math.max(0, Math.round((cur + delta) * 10) / 10);
+  }
+
   setValue(id, newVal);
   // Update display
   const card = document.getElementById(`card-${id}`);
