@@ -189,6 +189,23 @@ function buildMetricsLines(metrics) {
   return lines;
 }
 
+function countActiveDays(logs) {
+  const activeDates = new Set();
+  for (const log of (logs || [])) {
+    const values = log?.values;
+    if (!values || typeof values !== 'object') continue;
+    const isActive = Object.values(values).some((v) => {
+      if (v === true) return true;
+      if (typeof v === 'number' && v > 0) return true;
+      if (typeof v === 'string' && v.trim() !== '') return true;
+      if (Array.isArray(v) && v.length > 0) return true;
+      return false;
+    });
+    if (isActive) activeDates.add(log.log_date);
+  }
+  return activeDates.size;
+}
+
 function buildFallbackSummary(metrics, wins, learnings) {
   const themes = [];
   if (metrics.daysLogged >= 6) themes.push('Consistency carried the week.');
@@ -375,6 +392,14 @@ exports.handler = async (event) => {
 
       let jobId = null;
       try {
+        const logs = await supabaseGet(
+          supabaseUrl,
+          serviceRoleKey,
+          `dht_logs?select=log_date,values&user_id=eq.${encodeURIComponent(userId)}&log_date=gte.${weekStart}&log_date=lte.${weekEnd}&order=log_date.asc`
+        );
+
+        if (countActiveDays(logs) < 3) continue;
+
         const jobRows = await supabasePost(supabaseUrl, serviceRoleKey, 'dht_email_jobs', {
           user_id: userId,
           email,
@@ -390,12 +415,6 @@ exports.handler = async (event) => {
           }
         });
         jobId = Array.isArray(jobRows) ? jobRows[0]?.id : null;
-
-        const logs = await supabaseGet(
-          supabaseUrl,
-          serviceRoleKey,
-          `dht_logs?select=log_date,values&user_id=eq.${encodeURIComponent(userId)}&log_date=gte.${weekStart}&log_date=lte.${weekEnd}&order=log_date.asc`
-        );
 
         const metrics = summarizeWeekMetrics(logs);
         const metricsLines = buildMetricsLines(metrics);
