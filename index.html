@@ -1268,17 +1268,31 @@
     <div class="auth-tagline">Show up every day.<strong>Consistently over intensity.</strong></div>
 
     <div class="auth-tabs">
-      <button class="auth-tab active" onclick="switchAuthTab('login')">Magic Link</button>
+      <button class="auth-tab active" onclick="switchAuthTab('login')">Sign In</button>
       <button class="auth-tab" onclick="switchAuthTab('signup')">Invite Help</button>
     </div>
 
     <div id="login-form">
-      <div class="form-group">
-        <label>Email</label>
-        <input type="email" id="login-email" placeholder="you@example.com" autocomplete="email">
+      <div id="auth-step-email">
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="login-email" placeholder="you@example.com" autocomplete="email"
+                 onkeydown="if(event.key==='Enter')handleSendCode()">
+        </div>
+        <button class="btn-primary" onclick="handleSendCode()">Send Me a Code</button>
+        <div class="auth-helper">Enter your email and we'll send a 6-digit sign-in code — no link to open.</div>
       </div>
-      <button class="btn-primary" onclick="handleLogin()">Email Me a Sign-In Link</button>
-      <div class="auth-helper">Use the email address tied to your Daily Habits account. You will receive a one-time magic link to sign in.</div>
+
+      <div id="auth-step-code" style="display:none">
+        <div class="form-group">
+          <label>6-digit code</label>
+          <input type="text" id="login-otp" placeholder="123456" inputmode="numeric" maxlength="6"
+                 autocomplete="one-time-code" onkeydown="if(event.key==='Enter')handleVerifyCode()">
+        </div>
+        <button class="btn-primary" onclick="handleVerifyCode()">Sign In</button>
+        <button class="btn-secondary" style="margin-top:8px;width:100%" onclick="handleBackToEmail()">← Use a different email</button>
+        <div class="auth-helper" id="auth-code-hint"></div>
+      </div>
     </div>
 
     <div id="signup-form" style="display:none">
@@ -1589,21 +1603,28 @@ const sb = {
     };
   },
 
-  async requestMagicLink(email) {
+  async requestOTP(email) {
     const r = await fetch(`${SUPABASE_URL}/auth/v1/otp`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
-      body: JSON.stringify({
-        email,
-        create_user: false,
-        data: { email },
-        options: {
-          emailRedirectTo: `${APP_BASE_URL}/`
-        }
-      })
+      body: JSON.stringify({ email, create_user: false })
+    });
+    // 204 No Content is a success; only parse JSON when there is a body
+    if (r.status === 204) return {};
+    const d = await r.json();
+    if (!r.ok || d.error) throw new Error(d.error_description || d.error || 'Unable to send sign-in code');
+    return d;
+  },
+
+  async verifyOTP(email, token) {
+    const r = await fetch(`${SUPABASE_URL}/auth/v1/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+      body: JSON.stringify({ type: 'email', email, token })
     });
     const d = await r.json();
-    if (!r.ok || d.error) throw new Error(d.error_description || d.error || 'Unable to send sign-in link');
+    if (!r.ok || d.error) throw new Error(d.error_description || d.error || 'Invalid or expired code');
+    await this.exchangeTokens(d.access_token, d.refresh_token);
     return d;
   },
 
@@ -1845,9 +1866,9 @@ function switchAuthTab(tab) {
   document.getElementById('auth-success').textContent = '';
 }
 
-async function handleLogin() {
+async function handleSendCode() {
   const email = document.getElementById('login-email').value.trim();
-  const btn = document.querySelector('#login-form .btn-primary');
+  const btn = document.querySelector('#auth-step-email .btn-primary');
   if (!email) {
     document.getElementById('auth-error').textContent = 'Enter your email address.';
     document.getElementById('auth-error').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -1858,15 +1879,48 @@ async function handleLogin() {
   document.getElementById('auth-error').textContent = '';
   document.getElementById('auth-success').textContent = '';
   try {
-    await sb.requestMagicLink(email);
-    document.getElementById('auth-success').textContent = 'Check your email for a sign-in link.';
-    if (typeof showToast === 'function') showToast('Sign-in link sent — check your email');
+    await sb.requestOTP(email);
+    document.getElementById('auth-step-email').style.display = 'none';
+    document.getElementById('auth-step-code').style.display = 'block';
+    document.getElementById('auth-code-hint').textContent = `Code sent to ${email}. Check your inbox (and spam folder).`;
+    document.getElementById('login-otp').value = '';
+    document.getElementById('login-otp').focus();
   } catch(e) {
     document.getElementById('auth-error').textContent = e.message;
     document.getElementById('auth-error').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   } finally {
     if (btn) { btn.textContent = originalText; btn.disabled = false; }
   }
+}
+
+async function handleVerifyCode() {
+  const email = document.getElementById('login-email').value.trim();
+  const token = document.getElementById('login-otp').value.trim();
+  const btn = document.querySelector('#auth-step-code .btn-primary');
+  if (!token || token.length < 6) {
+    document.getElementById('auth-error').textContent = 'Enter the 6-digit code from your email.';
+    return;
+  }
+  const originalText = btn ? btn.textContent : null;
+  if (btn) { btn.textContent = 'Signing in…'; btn.disabled = true; }
+  document.getElementById('auth-error').textContent = '';
+  try {
+    await sb.verifyOTP(email, token);
+    await startApp();
+    if (typeof showToast === 'function') showToast('Signed in successfully');
+  } catch(e) {
+    document.getElementById('auth-error').textContent = e.message;
+    document.getElementById('auth-error').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    if (btn) { btn.textContent = originalText; btn.disabled = false; }
+  }
+}
+
+function handleBackToEmail() {
+  document.getElementById('auth-step-code').style.display = 'none';
+  document.getElementById('auth-step-email').style.display = 'block';
+  document.getElementById('auth-error').textContent = '';
+  document.getElementById('auth-success').textContent = '';
+  document.getElementById('login-otp').value = '';
 }
 
 async function handleSignup() {

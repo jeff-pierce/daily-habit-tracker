@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dht-v4';
+const CACHE_NAME = 'dht-v5';
 const APP_SHELL = [
   './',
   './index.html',
@@ -36,13 +36,6 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
 
   if (request.mode === 'navigate') {
-    // Magic-link tokens arrive in the URL hash (#access_token=...).
-    // The hash is never sent to the server, but fetch() on a navigate
-    // request loses it before the page can read window.location.hash.
-    // Let the browser handle these requests natively so the token survives.
-    const reqUrl = new URL(request.url);
-    if (reqUrl.hash && reqUrl.hash.includes('access_token')) return;
-
     event.respondWith(
       fetch(request)
         .then((response) => {
