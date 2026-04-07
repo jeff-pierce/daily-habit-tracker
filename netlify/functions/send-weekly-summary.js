@@ -345,7 +345,7 @@ exports.handler = async (event) => {
   const resendKey = process.env.RESEND_API_KEY;
   const fromEmail = process.env.RESEND_FROM_EMAIL;
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
-  const claudeModel = process.env.CLAUDE_MODEL || 'claude-3-5-sonnet-latest';
+  const claudeModel = process.env.CLAUDE_MODEL || 'claude-3-5-sonnet-20241022';
 
   if (!supabaseUrl || !serviceRoleKey || !resendKey || !fromEmail) {
     return json(500, { error: 'Missing required environment variables for weekly summaries' });
