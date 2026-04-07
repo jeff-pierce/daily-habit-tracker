@@ -347,7 +347,7 @@ exports.handler = async (event) => {
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
   const claudeModel = process.env.CLAUDE_MODEL || 'claude-3-5-sonnet-latest';
 
-  if (!supabaseUrl || !serviceRoleKey || !resendKey || !fromEmail || !anthropicKey) {
+  if (!supabaseUrl || !serviceRoleKey || !resendKey || !fromEmail) {
     return json(500, { error: 'Missing required environment variables for weekly summaries' });
   }
 
@@ -425,21 +425,27 @@ exports.handler = async (event) => {
         let summarySource = 'claude';
         let claudeAttempts = 0;
         let claudeError = null;
-        try {
-          const generated = await generateSummaryWithRetry({
-            anthropicKey,
-            model: claudeModel,
-            weekStart,
-            weekEnd,
-            metricsLines,
-            wins,
-            learnings
-          });
-          summaryText = generated.summaryText;
-          claudeAttempts = generated.attempts;
-        } catch (error) {
+        if (anthropicKey) {
+          try {
+            const generated = await generateSummaryWithRetry({
+              anthropicKey,
+              model: claudeModel,
+              weekStart,
+              weekEnd,
+              metricsLines,
+              wins,
+              learnings
+            });
+            summaryText = generated.summaryText;
+            claudeAttempts = generated.attempts;
+          } catch (error) {
+            summarySource = 'fallback';
+            claudeError = (error?.message || 'Claude summary failed').slice(0, 500);
+            summaryText = buildFallbackSummary(metrics, wins, learnings);
+          }
+        } else {
           summarySource = 'fallback';
-          claudeError = (error?.message || 'Claude summary failed').slice(0, 500);
+          claudeError = 'ANTHROPIC_API_KEY missing; fallback summary used';
           summaryText = buildFallbackSummary(metrics, wins, learnings);
         }
 
