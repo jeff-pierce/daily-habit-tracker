@@ -391,6 +391,19 @@
   }
   .theme-btn:hover { border-color: var(--border2); background: var(--border); }
 
+  .today-reorder-btn {
+    width: auto;
+    min-width: 78px;
+    padding: 0 0.55rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.02em;
+  }
+  .today-reorder-btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-bg);
+  }
+
   /* HABIT CARDS */
   .habit-card {
     background: var(--surface);
@@ -427,6 +440,28 @@
     display: flex;
     align-items: center;
     gap: 0.4rem;
+  }
+
+  .habit-drag-handle {
+    display: none;
+    margin-left: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface2);
+    color: var(--text-2);
+    font-size: 0.8rem;
+    line-height: 1;
+    padding: 0.22rem 0.45rem;
+    cursor: grab;
+    user-select: none;
+  }
+  .habit-drag-handle:active { cursor: grabbing; }
+
+  #habits-container.reorder-active .habit-drag-handle { display: inline-flex; }
+  #habits-container.reorder-active .habit-card { cursor: default; }
+  #habits-container.reorder-active .habit-card.sortable-ghost {
+    opacity: 0.55;
+    border-color: var(--accent);
   }
 
   /* Counter */
@@ -1323,6 +1358,7 @@
         <div class="header-controls">
           <button class="nav-day-btn" id="btn-prev-day" onclick="prevDay()" title="Previous day">&#8249;</button>
           <button class="nav-day-btn" id="btn-next-day" onclick="nextDay()" title="Next day" disabled>&#8250;</button>
+          <button class="nav-day-btn today-reorder-btn" id="today-reorder-btn" onclick="toggleTodayReorderMode()" title="Reorder habits">Reorder</button>
           <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle theme">🌙</button>
         </div>
         <div class="save-success saved" id="save-success">All changes saved</div>
@@ -1578,6 +1614,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script>
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // SUPABASE CONFIG — Replace with your project values
@@ -1779,18 +1816,15 @@ const REPORT_SECTIONS = [
 
 function sortHabitsForDisplay(list) {
   return [...(list || [])].sort((a, b) => {
-    const aDefault = DEFAULT_HABIT_INDEX.has(a.id);
-    const bDefault = DEFAULT_HABIT_INDEX.has(b.id);
+    const aSort = Number.isFinite(a.sort_order) ? a.sort_order : null;
+    const bSort = Number.isFinite(b.sort_order) ? b.sort_order : null;
+    if (aSort !== null && bSort !== null && aSort !== bSort) return aSort - bSort;
+    if (aSort !== null && bSort === null) return -1;
+    if (aSort === null && bSort !== null) return 1;
 
-    if (aDefault && bDefault) {
-      return DEFAULT_HABIT_INDEX.get(a.id) - DEFAULT_HABIT_INDEX.get(b.id);
-    }
-    if (aDefault) return -1;
-    if (bDefault) return 1;
-
-    const aSort = a.sort_order ?? Number.MAX_SAFE_INTEGER;
-    const bSort = b.sort_order ?? Number.MAX_SAFE_INTEGER;
-    if (aSort !== bSort) return aSort - bSort;
+    const aDefaultIdx = DEFAULT_HABIT_INDEX.has(a.id) ? DEFAULT_HABIT_INDEX.get(a.id) : Number.MAX_SAFE_INTEGER;
+    const bDefaultIdx = DEFAULT_HABIT_INDEX.has(b.id) ? DEFAULT_HABIT_INDEX.get(b.id) : Number.MAX_SAFE_INTEGER;
+    if (aDefaultIdx !== bDefaultIdx) return aDefaultIdx - bDefaultIdx;
 
     return (a.name || '').localeCompare(b.name || '');
   });
@@ -1816,6 +1850,96 @@ let autosaveInFlight = false;
 let autosaveQueued = false;
 let hasUnsavedChanges = false;
 let lastSavedSnapshot = '';
+let todayReorderMode = false;
+let todaySortable = null;
+
+function renderTodayReorderButton() {
+  const btn = document.getElementById('today-reorder-btn');
+  if (!btn) return;
+  btn.classList.toggle('active', todayReorderMode);
+  btn.textContent = todayReorderMode ? 'Done' : 'Reorder';
+  btn.title = todayReorderMode ? 'Done reordering' : 'Reorder habits';
+}
+
+function destroyTodaySortable() {
+  if (!todaySortable) return;
+  todaySortable.destroy();
+  todaySortable = null;
+}
+
+async function persistHabitOrder(visibleOrderedIds) {
+  if (!Array.isArray(visibleOrderedIds) || !visibleOrderedIds.length) return;
+
+  const byId = new Map(habits.map((h) => [h.id, h]));
+  const reorderedVisible = visibleOrderedIds
+    .map((id) => byId.get(id))
+    .filter(Boolean);
+  const reorderedVisibleIds = new Set(reorderedVisible.map((h) => h.id));
+  const hidden = habits
+    .filter((h) => !reorderedVisibleIds.has(h.id))
+    .sort((a, b) => (a.sort_order ?? Number.MAX_SAFE_INTEGER) - (b.sort_order ?? Number.MAX_SAFE_INTEGER));
+
+  const previousSort = new Map(habits.map((h) => [h.id, h.sort_order]));
+  const next = [...reorderedVisible, ...hidden].map((h, i) => ({ ...h, sort_order: i }));
+  const changed = next.filter((h) => previousSort.get(h.id) !== h.sort_order);
+
+  habits = sortHabitsForDisplay(next);
+  if (!changed.length) return;
+
+  try {
+    await Promise.all(changed.map(async (h) => {
+      const t = await sb.from('dht_habits');
+      await t.eq('id', h.id).eq('user_id', sb.userId).update({ sort_order: h.sort_order });
+    }));
+  } catch (e) {
+    console.error('persistHabitOrder error:', e);
+    showToast('Could not save habit order');
+    await loadHabits();
+  }
+}
+
+function initTodaySortable() {
+  destroyTodaySortable();
+  const container = document.getElementById('habits-container');
+  if (!container || !todayReorderMode || typeof Sortable === 'undefined') return;
+
+  todaySortable = Sortable.create(container, {
+    animation: 140,
+    handle: '.habit-drag-handle',
+    draggable: '.habit-card',
+    ghostClass: 'sortable-ghost',
+    onEnd: async () => {
+      const orderedIds = [...container.querySelectorAll('.habit-card')]
+        .map((card) => card.dataset.habitId)
+        .filter(Boolean);
+      await persistHabitOrder(orderedIds);
+      renderToday();
+    }
+  });
+}
+
+function toggleTodayReorderMode() {
+  todayReorderMode = !todayReorderMode;
+  renderTodayReorderButton();
+  renderToday();
+  showToast(todayReorderMode ? 'Drag cards by the handle to reorder' : 'Habit order saved');
+}
+
+async function normalizeHabitSortOrder() {
+  const normalized = sortHabitsForDisplay(habits).map((h, i) => ({ ...h, sort_order: i }));
+  const changed = normalized.filter((h) => h.sort_order !== (habits.find((x) => x.id === h.id)?.sort_order));
+  habits = normalized;
+  if (!changed.length) return;
+
+  try {
+    await Promise.all(changed.map(async (h) => {
+      const t = await sb.from('dht_habits');
+      await t.eq('id', h.id).eq('user_id', sb.userId).update({ sort_order: h.sort_order });
+    }));
+  } catch (e) {
+    console.error('normalizeHabitSortOrder error:', e);
+  }
+}
 
 function isIsoDate(s) {
   return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
@@ -1966,7 +2090,9 @@ async function startApp() {
     updateAdminVisibility();
 
     await withTimeout(loadHabits(), 8000);
+    await normalizeHabitSortOrder();
     await withTimeout(loadSelectedLog(), 8000);
+    renderTodayReorderButton();
     renderToday();
     loadNotifSettings();
     renderSettingsPreferences();
@@ -1975,6 +2101,7 @@ async function startApp() {
     // Fallback ensures UI still becomes usable if any network call hangs.
     if (!habits.length) habits = DEFAULT_HABITS;
     if (!todayValues || typeof todayValues !== 'object') todayValues = {};
+    renderTodayReorderButton();
     renderToday();
     showToast('Loaded with limited data. Please try saving again.');
   }
@@ -2281,43 +2408,17 @@ async function loadAllLogs() {
 function renderToday() {
   const container = document.getElementById('habits-container');
   const visible = habits.filter(h => h.visible !== false);
-  const pairGroups = [
-    ['pushups', 'squats'],
-    ['water', 'vitamins'],
-    ['meditation', 'sleep']
-  ];
-  const visibleById = new Map(visible.map(h => [h.id, h]));
-  const used = new Set();
-  const sections = [];
-
-  for (const h of visible) {
-    if (used.has(h.id)) continue;
-
-    const group = pairGroups.find(g => g.includes(h.id));
-    if (group) {
-      const left = visibleById.get(group[0]);
-      const right = visibleById.get(group[1]);
-      if (left && right) {
-        sections.push(`<div class="habit-pair-grid">${renderHabitCard(left)}${renderHabitCard(right)}</div>`);
-        used.add(group[0]);
-        used.add(group[1]);
-        continue;
-      }
-    }
-
-    sections.push(renderHabitCard(h));
-    used.add(h.id);
-  }
-
-  container.innerHTML = sections.join('');
+  container.classList.toggle('reorder-active', todayReorderMode);
+  container.innerHTML = visible.map((h) => renderHabitCard(h)).join('');
+  initTodaySortable();
   updateCompletionBar();
 }
 
 function renderHabitCard(h) {
   const v = todayValues[h.id];
   const isComplete = checkComplete(h, v);
-  return `<div class="habit-card ${isComplete?'completed':''}" id="card-${h.id}">
-    <div class="habit-label"><span class="emoji">${h.emoji||'✦'}</span>${h.name}</div>
+  return `<div class="habit-card ${isComplete?'completed':''}" id="card-${h.id}" data-habit-id="${h.id}">
+    <div class="habit-label"><span class="emoji">${h.emoji||'✦'}</span>${h.name}<span class="habit-drag-handle" aria-label="Drag to reorder" title="Drag to reorder">⠿</span></div>
     ${renderInput(h, v)}
   </div>`;
 }
@@ -3091,9 +3192,8 @@ async function addNewHabit() {
 
   if (!name) { showToast('Please enter a habit name'); return; }
 
-  const customHabits = habits.filter(h => !DEFAULT_HABIT_INDEX.has(h.id));
-  const nextCustomSort = customHabits.length
-    ? Math.max(...customHabits.map(h => h.sort_order ?? 0)) + 1
+  const nextSort = habits.length
+    ? Math.max(...habits.map(h => h.sort_order ?? 0)) + 1
     : 0;
 
   const id = 'custom_' + Date.now();
@@ -3101,7 +3201,7 @@ async function addNewHabit() {
     id, name, emoji, type, unit: unit||null,
     visible: true,
     user_id: sb.userId,
-    sort_order: nextCustomSort,
+    sort_order: nextSort,
     step: type === 'counter' ? 1 : undefined,
     count: type === 'gratitude' ? 3 : undefined
   };
