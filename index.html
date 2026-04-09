@@ -2409,7 +2409,33 @@ function renderToday() {
   const container = document.getElementById('habits-container');
   const visible = habits.filter(h => h.visible !== false);
   container.classList.toggle('reorder-active', todayReorderMode);
-  container.innerHTML = visible.map((h) => renderHabitCard(h)).join('');
+
+  if (todayReorderMode) {
+    container.innerHTML = visible.map((h) => renderHabitCard(h)).join('');
+    initTodaySortable();
+    updateCompletionBar();
+    return;
+  }
+
+  const pairKeys = new Set(['pushups|squats', 'water|vitamins', 'meditation|sleep']);
+  const isPair = (a, b) => {
+    if (!a || !b) return false;
+    return pairKeys.has(`${a.id}|${b.id}`) || pairKeys.has(`${b.id}|${a.id}`);
+  };
+
+  const sections = [];
+  for (let i = 0; i < visible.length; i++) {
+    const current = visible[i];
+    const next = visible[i + 1];
+    if (isPair(current, next)) {
+      sections.push(`<div class="habit-pair-grid">${renderHabitCard(current)}${renderHabitCard(next)}</div>`);
+      i++;
+      continue;
+    }
+    sections.push(renderHabitCard(current));
+  }
+
+  container.innerHTML = sections.join('');
   initTodaySortable();
   updateCompletionBar();
 }
