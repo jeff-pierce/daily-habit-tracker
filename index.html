@@ -704,6 +704,14 @@
 
   .report-tab.active { background: var(--accent); border-color: var(--accent); color: white; }
 
+  .section-tooltip {
+    font-size: 0.75rem;
+    color: var(--text-2);
+    cursor: help;
+    font-weight: 300;
+    margin-left: 0.25rem;
+  }
+
   .btn-export {
     width: 100%;
     padding: 0.72rem;
@@ -1404,13 +1412,8 @@
     </div>
 
     <div class="report-section" data-section-id="exercise">
-      <h3>📈 Exercise Progress</h3>
-      <div class="report-tabs">
-        <button class="report-tab active" onclick="switchChartMetric('pushups', this)">Push-ups</button>
-        <button class="report-tab" onclick="switchChartMetric('squats', this)">Squats</button>
-        <button class="report-tab" onclick="switchChartMetric('water', this)">Water</button>
-        <button class="report-tab" onclick="switchChartMetric('meditation', this)">Meditation</button>
-      </div>
+      <h3>📈 Habit Trends <span class="section-tooltip" title="These are your top habits from the Habits tab. Reorder them there to change what appears here.">ⓘ</span></h3>
+      <div class="report-tabs" id="habit-chart-tabs"></div>
       <div class="chart-container">
         <canvas id="progress-chart"></canvas>
       </div>
@@ -2670,15 +2673,33 @@ async function flushAutosave() {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // REPORTS
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function getTopHabits(n = 6) {
+  return habits.filter(h => h.visible !== false).slice(0, n);
+}
+
 async function loadReports() {
   await loadAllLogs();
   renderStreaks();
   renderHeatmap();
+  renderChartTabs();
   renderWeeklySummary();
   renderYtdSummary();
   renderRecords();
-  renderChart(currentChartMetric);
   applyReportSectionPrefs();
+}
+
+function renderChartTabs() {
+  const chartable = getTopHabits(6).filter(h => ['counter','slider','mood'].includes(h.type));
+  const container = document.getElementById('habit-chart-tabs');
+  if (!chartable.length) {
+    container.innerHTML = '<span style="color:var(--text-2);font-size:0.85rem">No numeric habits to chart yet.</span>';
+    return;
+  }
+  container.innerHTML = chartable.map((h, i) =>
+    `<button class="report-tab${i===0?' active':''}" onclick="switchChartMetric('${h.id}', this)">${h.emoji||''} ${h.name}</button>`
+  ).join('');
+  currentChartMetric = chartable[0].id;
+  renderChart(currentChartMetric);
 }
 
 function renderStreaks() {
@@ -2738,24 +2759,37 @@ function renderWeeklySummary() {
   const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 6);
   const weekStr = weekAgo.toISOString().slice(0,10);
   const weekLogs = allLogs.filter(l => l.log_date >= weekStr);
-
+  const top6 = getTopHabits(6);
   const summaries = [];
 
-  // Push-ups total
-  const pushupTotal = weekLogs.reduce((s,l) => s + (l.values?.pushups||0), 0);
-  if (pushupTotal) summaries.push({ label: '💪 Push-ups this week', value: pushupTotal.toLocaleString() + ' reps' });
-
-  const squatTotal = weekLogs.reduce((s,l) => s + (l.values?.squats||0), 0);
-  if (squatTotal) summaries.push({ label: '🦵 Squats this week', value: squatTotal.toLocaleString() + ' reps' });
-
-  const vitaDays = weekLogs.filter(l => l.values?.vitamins).length;
-  summaries.push({ label: '💊 Vitamins taken', value: `${vitaDays} / 7 days` });
-
-  const medTotal = weekLogs.reduce((s,l) => s + (l.values?.meditation||0), 0);
-  summaries.push({ label: '🧘 Meditation', value: medTotal + ' mins' });
-
-  const moodAvg = weekLogs.filter(l => l.values?.mood).reduce((s,l,_,a) => s + l.values.mood/a.length, 0);
-  if (moodAvg) summaries.push({ label: '😊 Avg mood', value: moodAvg.toFixed(1) + ' / 5' });
+  for (const h of top6) {
+    const { id, type, name, emoji, unit } = h;
+    if (type === 'toggle') {
+      const days = weekLogs.filter(l => l.values?.[id] === true).length;
+      if (days) summaries.push({ label: `${emoji||''} ${name}`, value: `${days} / 7 days` });
+    } else if (type === 'counter') {
+      const total = weekLogs.reduce((s,l) => s + (l.values?.[id]||0), 0);
+      if (total) summaries.push({ label: `${emoji||''} ${name} this week`, value: unit ? `${total.toLocaleString()} ${unit}` : total.toLocaleString() });
+    } else if (type === 'slider') {
+      const entries = weekLogs.filter(l => l.values?.[id] != null && l.values[id] > 0);
+      if (entries.length) {
+        const avg = entries.reduce((s,l) => s + l.values[id], 0) / entries.length;
+        summaries.push({ label: `${emoji||''} ${name} avg`, value: unit ? `${avg.toFixed(1)} ${unit}` : avg.toFixed(1) });
+      }
+    } else if (type === 'mood') {
+      const entries = weekLogs.filter(l => l.values?.[id]);
+      if (entries.length) {
+        const avg = entries.reduce((s,l) => s + l.values[id], 0) / entries.length;
+        summaries.push({ label: `${emoji||''} Avg ${name.toLowerCase()}`, value: `${avg.toFixed(1)} / 5` });
+      }
+    } else if (type === 'text' || type === 'gratitude') {
+      const days = weekLogs.filter(l => {
+        const v = l.values?.[id];
+        return Array.isArray(v) ? v.length > 0 : (typeof v === 'string' && v.trim().length > 0);
+      }).length;
+      if (days) summaries.push({ label: `${emoji||''} ${name} logged`, value: `${days} / 7 days` });
+    }
+  }
 
   const days = new Set(weekLogs.map(l => l.log_date)).size;
   summaries.push({ label: '📅 Days logged', value: `${days} / 7` });
@@ -2772,26 +2806,40 @@ function renderYtdSummary() {
   yearStart.setHours(0, 0, 0, 0);
   const ytdStr = yearStart.toISOString().slice(0,10);
   const ytdLogs = allLogs.filter(l => l.log_date >= ytdStr);
-
+  const top6 = getTopHabits(6);
   const summaries = [];
 
   const daysLogged = new Set(ytdLogs.map(l => l.log_date)).size;
   summaries.push({ label: '📅 Days logged (YTD)', value: daysLogged.toLocaleString() });
 
-  const ytdPushups = ytdLogs.reduce((s,l) => s + (l.values?.pushups || 0), 0);
-  if (ytdPushups) summaries.push({ label: '💪 Push-ups (YTD)', value: `${ytdPushups.toLocaleString()} reps` });
-
-  const ytdSquats = ytdLogs.reduce((s,l) => s + (l.values?.squats || 0), 0);
-  if (ytdSquats) summaries.push({ label: '🦵 Squats (YTD)', value: `${ytdSquats.toLocaleString()} reps` });
-
-  const ytdWater = ytdLogs.reduce((s,l) => s + (l.values?.water || 0), 0);
-  if (ytdWater) summaries.push({ label: '💧 Water (YTD)', value: `${ytdWater.toLocaleString()} cups` });
-
-  const ytdMeditation = ytdLogs.reduce((s,l) => s + (l.values?.meditation || 0), 0);
-  if (ytdMeditation) summaries.push({ label: '🧘 Meditation (YTD)', value: `${ytdMeditation.toLocaleString()} mins` });
-
-  const vitaminsDays = ytdLogs.filter(l => l.values?.vitamins).length;
-  if (daysLogged) summaries.push({ label: '💊 Vitamin consistency', value: `${vitaminsDays} / ${daysLogged} logged days` });
+  for (const h of top6) {
+    const { id, type, name, emoji, unit } = h;
+    if (type === 'toggle') {
+      const days = ytdLogs.filter(l => l.values?.[id] === true).length;
+      if (days) summaries.push({ label: `${emoji||''} ${name} (YTD)`, value: daysLogged ? `${days} / ${daysLogged} logged days` : `${days} days` });
+    } else if (type === 'counter') {
+      const total = ytdLogs.reduce((s,l) => s + (l.values?.[id]||0), 0);
+      if (total) summaries.push({ label: `${emoji||''} ${name} (YTD)`, value: unit ? `${total.toLocaleString()} ${unit}` : total.toLocaleString() });
+    } else if (type === 'slider') {
+      const entries = ytdLogs.filter(l => l.values?.[id] != null && l.values[id] > 0);
+      if (entries.length) {
+        const avg = entries.reduce((s,l) => s + l.values[id], 0) / entries.length;
+        summaries.push({ label: `${emoji||''} ${name} avg (YTD)`, value: unit ? `${avg.toFixed(1)} ${unit}` : avg.toFixed(1) });
+      }
+    } else if (type === 'mood') {
+      const entries = ytdLogs.filter(l => l.values?.[id]);
+      if (entries.length) {
+        const avg = entries.reduce((s,l) => s + l.values[id], 0) / entries.length;
+        summaries.push({ label: `${emoji||''} Avg ${name.toLowerCase()} (YTD)`, value: `${avg.toFixed(1)} / 5` });
+      }
+    } else if (type === 'text' || type === 'gratitude') {
+      const days = ytdLogs.filter(l => {
+        const v = l.values?.[id];
+        return Array.isArray(v) ? v.length > 0 : (typeof v === 'string' && v.trim().length > 0);
+      }).length;
+      if (days) summaries.push({ label: `${emoji||''} ${name} logged (YTD)`, value: daysLogged ? `${days} / ${daysLogged} logged days` : `${days} days` });
+    }
+  }
 
   const winsCount = ytdLogs.filter(l => typeof l.values?.wins === 'string' && l.values.wins.trim().length > 0).length;
   if (winsCount) summaries.push({ label: '🏆 Days with a logged win', value: winsCount.toLocaleString() });
@@ -2807,21 +2855,16 @@ function renderYtdSummary() {
 function renderRecords() {
   const container = document.getElementById('records-list');
   const records = [];
+  const top6 = getTopHabits(6).filter(h => ['counter','slider'].includes(h.type));
 
-  const maxPushups = Math.max(...allLogs.map(l => l.values?.pushups||0), 0);
-  if (maxPushups) records.push({ label: '💪 Best push-up day', value: maxPushups + ' reps', isPR: true });
-
-  const maxSquats = Math.max(...allLogs.map(l => l.values?.squats||0), 0);
-  if (maxSquats) records.push({ label: '🦵 Best squat day', value: maxSquats + ' reps', isPR: true });
-
-  const totalPushups = allLogs.reduce((s,l) => s + (l.values?.pushups||0), 0);
-  if (totalPushups) records.push({ label: '💪 Total push-ups ever', value: totalPushups.toLocaleString() });
-
-  const totalSquats = allLogs.reduce((s,l) => s + (l.values?.squats||0), 0);
-  if (totalSquats) records.push({ label: '🦵 Total squats ever', value: totalSquats.toLocaleString() });
-
-  const totalMed = allLogs.reduce((s,l) => s + (l.values?.meditation||0), 0);
-  if (totalMed) records.push({ label: '🧘 Total meditation', value: totalMed + ' mins' });
+  for (const h of top6) {
+    const { id, type, name, emoji, unit } = h;
+    const suffix = unit ? ` ${unit}` : '';
+    const best = Math.max(...allLogs.map(l => l.values?.[id]||0), 0);
+    if (best) records.push({ label: `${emoji||''} Best ${name.toLowerCase()} day`, value: best.toLocaleString() + suffix, isPR: true });
+    const total = allLogs.reduce((s,l) => s + (l.values?.[id]||0), 0);
+    if (total) records.push({ label: `${emoji||''} Total ${name.toLowerCase()} ever`, value: total.toLocaleString() + suffix });
+  }
 
   container.innerHTML = records.map(r =>
     `<div class="summary-row">
