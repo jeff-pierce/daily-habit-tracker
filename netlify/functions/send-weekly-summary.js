@@ -139,31 +139,72 @@ async function supabasePatch(supabaseUrl, serviceRoleKey, tableWithFilters, payl
   }
 }
 
-function summarizeWeekMetrics(logs) {
+async function getTopHabitsForUser(supabaseUrl, serviceRoleKey, userId, limit = 6) {
+  const res = await fetch(`${supabaseUrl}/rest/v1/dht_habits?user_id=eq.${encodeURIComponent(userId)}&select=*&order=sort_order.asc&limit=${limit}`, {
+    headers: {
+      apikey: serviceRoleKey,
+      Authorization: `Bearer ${serviceRoleKey}`
+    }
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to fetch habits: ${res.status}`);
+  }
+  const habits = await res.json();
+  return Array.isArray(habits) ? habits.filter(h => h.visible !== false) : [];
+}
+
+function buildDynamicMetrics(habits, logs) {
   const weekLogs = Array.isArray(logs) ? logs : [];
+  const metrics = {};
 
-  const pushupTotal = weekLogs.reduce((s, l) => s + (Number(l?.values?.pushups) || 0), 0);
-  const squatTotal = weekLogs.reduce((s, l) => s + (Number(l?.values?.squats) || 0), 0);
-  const vitaDays = weekLogs.filter((l) => l?.values?.vitamins === true).length;
-  const meditationTotal = weekLogs.reduce((s, l) => s + (Number(l?.values?.meditation) || 0), 0);
+  habits.forEach((habit) => {
+    const habitId = habit.id;
+    const values = weekLogs.map((l) => l?.values?.[habitId]).filter((v) => v !== undefined && v !== null);
 
-  const moodValues = weekLogs
-    .map((l) => Number(l?.values?.mood))
-    .filter((v) => Number.isFinite(v) && v > 0);
-  const moodAvg = moodValues.length
-    ? moodValues.reduce((a, b) => a + b, 0) / moodValues.length
-    : null;
+    if (habit.type === 'toggle') {
+      metrics[habitId] = values.filter((v) => v === true).length;
+    } else if (habit.type === 'counter') {
+      metrics[habitId] = values.reduce((sum, v) => sum + (Number(v) || 0), 0);
+    } else if (habit.type === 'slider') {
+      metrics[habitId] = values.length
+        ? (values.reduce((sum, v) => sum + (Number(v) || 0), 0) / values.length).toFixed(1)
+        : null;
+    } else if (habit.type === 'mood') {
+      const nums = values.map(Number).filter(Number.isFinite);
+      metrics[habitId] = nums.length ? (nums.reduce((a, b) => a + b, 0) / nums.length).toFixed(1) : null;
+    } else if (habit.type === 'text') {
+      metrics[habitId] = values.filter((v) => typeof v === 'string' && v.trim()).length;
+    } else if (habit.type === 'gratitude') {
+      metrics[habitId] = values.filter((v) => Array.isArray(v) && v.length > 0).length;
+    }
+  });
 
   const daysLogged = new Set(weekLogs.map((l) => l.log_date)).size;
+  return { metrics, daysLogged };
+}
 
-  return {
-    pushupTotal,
-    squatTotal,
-    vitaDays,
-    meditationTotal,
-    moodAvg,
-    daysLogged
-  };
+function formatHabitMetricLine(habit, metricValue) {
+  if (metricValue === null || metricValue === undefined) return null;
+
+  const unit = habit.unit || '';
+  const unitStr = unit ? ` ${unit}` : '';
+
+  switch (habit.type) {
+    case 'toggle':
+      return `- ${habit.name}: ${metricValue} / 7 days`;
+    case 'counter':
+      return `- ${habit.name}: ${metricValue.toLocaleString()}${unitStr}`;
+    case 'slider':
+      return `- ${habit.name}: avg ${metricValue}${unitStr}`;
+    case 'mood':
+      return `- ${habit.name}: avg ${metricValue} / 5`;
+    case 'text':
+      return `- ${habit.name}: ${metricValue} entries`;
+    case 'gratitude':
+      return `- ${habit.name}: ${metricValue} logged`;
+    default:
+      return null;
+  }
 }
 
 function collectTextEntries(logs, key) {
@@ -178,14 +219,14 @@ function collectTextEntries(logs, key) {
     .filter(Boolean);
 }
 
-function buildMetricsLines(metrics) {
+function buildMetricsLines(habits, metricsObj) {
   const lines = [];
-  if (metrics.pushupTotal) lines.push(`- Push-ups this week: ${metrics.pushupTotal.toLocaleString()} reps`);
-  if (metrics.squatTotal) lines.push(`- Squats this week: ${metrics.squatTotal.toLocaleString()} reps`);
-  lines.push(`- Vitamins taken: ${metrics.vitaDays} / 7 days`);
-  lines.push(`- Meditation: ${metrics.meditationTotal} mins`);
-  if (metrics.moodAvg) lines.push(`- Avg mood: ${metrics.moodAvg.toFixed(1)} / 5`);
-  lines.push(`- Days logged: ${metrics.daysLogged} / 7`);
+  habits.forEach((habit) => {
+    const metricValue = metricsObj.metrics[habit.id];
+    const line = formatHabitMetricLine(habit, metricValue);
+    if (line) lines.push(line);
+  });
+  lines.push(`- Days logged: ${metricsObj.daysLogged} / 7`);
   return lines;
 }
 
@@ -405,6 +446,9 @@ exports.handler = async (event) => {
 
         if (countActiveDays(logs) < 3) continue;
 
+        // Fetch user's top 6 habits
+        const topHabits = await getTopHabitsForUser(supabaseUrl, serviceRoleKey, userId, 6);
+
         const jobRows = await supabasePost(supabaseUrl, serviceRoleKey, 'dht_email_jobs', {
           user_id: userId,
           email,
@@ -421,8 +465,8 @@ exports.handler = async (event) => {
         });
         jobId = Array.isArray(jobRows) ? jobRows[0]?.id : null;
 
-        const metrics = summarizeWeekMetrics(logs);
-        const metricsLines = buildMetricsLines(metrics);
+        const metricsObj = buildDynamicMetrics(topHabits, logs);
+        const metricsLines = buildMetricsLines(topHabits, metricsObj);
         const wins = collectTextEntries(logs, 'wins');
         const learnings = collectTextEntries(logs, 'learnings');
 
