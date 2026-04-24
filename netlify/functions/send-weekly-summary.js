@@ -354,6 +354,7 @@ exports.handler = async (event) => {
   const headers = event.headers || {};
   const isScheduledEvent = getHeader(headers, 'x-nf-event') === 'schedule' || !!getHeader(headers, 'x-nf-scheduled-at');
   const forceRun = String(event?.queryStringParameters?.force || '').toLowerCase() === 'true';
+  const targetEmail = (event?.queryStringParameters?.target_email || '').trim().toLowerCase();
 
   if (!isScheduledEvent) {
     if (event.httpMethod !== 'POST') {
@@ -376,10 +377,14 @@ exports.handler = async (event) => {
   const { weekStart, weekEnd } = getWeekWindowForLastMondayRun();
 
   try {
+    let profilesQuery = 'dht_profiles?select=user_id,email,weekly_summary_enabled&weekly_summary_enabled=eq.true';
+    if (targetEmail) {
+      profilesQuery += `&email=eq.${encodeURIComponent(targetEmail)}`;
+    }
     const profiles = await supabaseGet(
       supabaseUrl,
       serviceRoleKey,
-      'dht_profiles?select=user_id,email,weekly_summary_enabled&weekly_summary_enabled=eq.true'
+      profilesQuery
     );
 
     let sentCount = 0;

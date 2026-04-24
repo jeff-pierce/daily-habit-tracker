@@ -1,6 +1,13 @@
 [build]
   publish = "."
 
+[functions]
+  directory = "netlify/functions"
+
+[[functions]]
+  path = "/netlify/functions/send-weekly-summary"
+  schedule = "0 * * * 1"
+
 [[headers]]
   for = "/sw.js"
   [headers.values]
