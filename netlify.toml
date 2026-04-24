@@ -7,6 +7,9 @@
 [functions."send-weekly-summary"]
   schedule = "0 * * * 1"
 
+[functions."send-monthly-summary"]
+  schedule = "0 * 1 * *"
+
 [[headers]]
   for = "/sw.js"
   [headers.values]
