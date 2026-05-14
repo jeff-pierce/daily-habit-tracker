@@ -704,6 +704,74 @@
 
   .report-tab.active { background: var(--accent); border-color: var(--accent); color: white; }
 
+  .trend-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+  }
+  .trend-header h3 { margin-bottom: 0; }
+
+  .trend-filter-btn {
+    padding: 0.28rem 0.7rem;
+    border-radius: 20px;
+    border: 1px solid var(--border2);
+    background: transparent;
+    font-family: 'Sora', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-2);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .trend-filter-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .trend-filter-btn.open { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+
+  .trend-filter-panel {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 12px;
+    padding: 0.85rem;
+    margin-bottom: 0.8rem;
+  }
+  .trend-filter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 0.4rem;
+    margin-bottom: 0.6rem;
+  }
+  .trend-habit-check {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.45rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.78rem;
+    color: var(--text-2);
+    transition: background 0.15s;
+  }
+  .trend-habit-check:hover { background: var(--border); }
+  .trend-habit-check.checked { color: var(--text); }
+  .trend-habit-check input[type=checkbox] { accent-color: var(--accent); width: 14px; height: 14px; flex-shrink: 0; cursor: pointer; }
+  .trend-filter-actions {
+    display: flex;
+    gap: 0.75rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border);
+  }
+  .trend-filter-action-btn {
+    font-family: 'Sora', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--accent);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+  }
+  .trend-filter-action-btn.muted { color: var(--text-3); }
+
   .section-tooltip {
     font-size: 0.75rem;
     color: var(--text-2);
@@ -1412,7 +1480,11 @@
     </div>
 
     <div class="report-section" data-section-id="exercise">
-      <h3>📈 Habit Trends <span class="section-tooltip" title="These are your top habits from the Habits tab. Reorder them there to change what appears here.">ⓘ</span></h3>
+      <div class="trend-header">
+        <h3>📈 Habit Trends</h3>
+        <button class="trend-filter-btn" id="trend-filter-toggle" onclick="toggleHabitTrendFilter()">⚙ Select Habits</button>
+      </div>
+      <div class="trend-filter-panel" id="trend-filter-panel" style="display:none"></div>
       <div class="report-tabs" id="habit-chart-tabs"></div>
       <div class="chart-container">
         <canvas id="progress-chart"></canvas>
@@ -1847,6 +1919,7 @@ let adminUsers = [];
 let pendingInvites = [];
 let revokedInvites = [];
 let reportSectionPrefs = [];
+let habitTrendSelection = null; // null = all chartable habits (default)
 const AUTOSAVE_DEBOUNCE_MS = 1200;
 let autosaveTimer = null;
 let autosaveInFlight = false;
@@ -2688,18 +2761,113 @@ async function loadReports() {
   applyReportSectionPrefs();
 }
 
+function getAllChartableHabits() {
+  return habits.filter(h => h.visible !== false && ['counter','slider','mood'].includes(h.type));
+}
+
+function getHabitTrendSelection() {
+  if (habitTrendSelection === null) {
+    const stored = localStorage.getItem('habitTrendSelection');
+    if (stored) {
+      try { habitTrendSelection = JSON.parse(stored); } catch { habitTrendSelection = null; }
+    }
+  }
+  return habitTrendSelection;
+}
+
+function setHabitTrendSelection(ids) {
+  habitTrendSelection = ids;
+  localStorage.setItem('habitTrendSelection', JSON.stringify(ids));
+}
+
 function renderChartTabs() {
-  const chartable = getTopHabits(6).filter(h => ['counter','slider','mood'].includes(h.type));
+  const all = getAllChartableHabits();
+  const selection = getHabitTrendSelection();
+  // null selection = show all; otherwise filter to stored IDs that still exist
+  const selected = selection ? all.filter(h => selection.includes(h.id)) : all;
+
   const container = document.getElementById('habit-chart-tabs');
-  if (!chartable.length) {
+  if (!all.length) {
     container.innerHTML = '<span style="color:var(--text-2);font-size:0.85rem">No numeric habits to chart yet.</span>';
     return;
   }
-  container.innerHTML = chartable.map((h, i) =>
+  if (!selected.length) {
+    container.innerHTML = '<span style="color:var(--text-2);font-size:0.85rem">No habits selected — use ⚙ Select Habits to choose.</span>';
+    if (progressChart) { progressChart.destroy(); progressChart = null; }
+    return;
+  }
+  container.innerHTML = selected.map((h, i) =>
     `<button class="report-tab${i===0?' active':''}" onclick="switchChartMetric('${h.id}', this)">${h.emoji||''} ${h.name}</button>`
   ).join('');
-  currentChartMetric = chartable[0].id;
+  currentChartMetric = selected[0].id;
   renderChart(currentChartMetric);
+}
+
+function toggleHabitTrendFilter() {
+  const panel = document.getElementById('trend-filter-panel');
+  const btn = document.getElementById('trend-filter-toggle');
+  const isOpen = panel.style.display !== 'none';
+  if (isOpen) {
+    panel.style.display = 'none';
+    btn.classList.remove('open');
+  } else {
+    renderHabitTrendFilterPanel();
+    panel.style.display = 'block';
+    btn.classList.add('open');
+  }
+}
+
+function renderHabitTrendFilterPanel() {
+  const all = getAllChartableHabits();
+  const selection = getHabitTrendSelection();
+  const selected = selection ? new Set(selection) : new Set(all.map(h => h.id));
+
+  const panel = document.getElementById('trend-filter-panel');
+  if (!all.length) {
+    panel.innerHTML = '<span style="color:var(--text-2);font-size:0.82rem">No numeric habits to display.</span>';
+    return;
+  }
+  panel.innerHTML = `
+    <div class="trend-filter-grid">
+      ${all.map(h => `
+        <label class="trend-habit-check${selected.has(h.id) ? ' checked' : ''}">
+          <input type="checkbox" ${selected.has(h.id) ? 'checked' : ''}
+            onchange="onTrendHabitCheck('${h.id}', this.checked)">
+          <span>${h.emoji || ''} ${h.name}</span>
+        </label>
+      `).join('')}
+    </div>
+    <div class="trend-filter-actions">
+      <button class="trend-filter-action-btn" onclick="selectAllTrendHabits()">Select all</button>
+      <button class="trend-filter-action-btn muted" onclick="clearAllTrendHabits()">Clear all</button>
+    </div>
+  `;
+}
+
+function onTrendHabitCheck(habitId, checked) {
+  const all = getAllChartableHabits();
+  const selection = getHabitTrendSelection();
+  let current = selection ? [...selection] : all.map(h => h.id);
+  if (checked) {
+    if (!current.includes(habitId)) current.push(habitId);
+  } else {
+    current = current.filter(id => id !== habitId);
+  }
+  setHabitTrendSelection(current);
+  renderHabitTrendFilterPanel();
+  renderChartTabs();
+}
+
+function selectAllTrendHabits() {
+  setHabitTrendSelection(getAllChartableHabits().map(h => h.id));
+  renderHabitTrendFilterPanel();
+  renderChartTabs();
+}
+
+function clearAllTrendHabits() {
+  setHabitTrendSelection([]);
+  renderHabitTrendFilterPanel();
+  renderChartTabs();
 }
 
 function renderStreaks() {
